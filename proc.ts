@@ -30,7 +30,7 @@ export function add<T>(
   const initial_args = args;
   let state = 0;
   while (args instanceof lisp.Pair) {
-    if (args.fst instanceof lisp.Float) {
+    if (args.fst instanceof lisp.Num) {
       state += args.fst.value;
       args = args.snd;
     } else {
@@ -38,7 +38,7 @@ export function add<T>(
     }
   }
   if (args instanceof lisp.Nil) {
-    const result = new lisp.Float(state);
+    const result = new lisp.Num(state);
     return ok(result);
   }
   return err(`add: ${initial_args}`);
@@ -53,7 +53,7 @@ export function mul<T>(
   const initial_args = args;
   let state = 1;
   while (args instanceof lisp.Pair) {
-    if (args.fst instanceof lisp.Float) {
+    if (args.fst instanceof lisp.Num) {
       state *= args.fst.value;
       args = args.snd;
     } else {
@@ -61,7 +61,7 @@ export function mul<T>(
     }
   }
   if (args instanceof lisp.Nil) {
-    const result = new lisp.Float(state);
+    const result = new lisp.Num(state);
     return ok(result);
   }
   return err(`mul: ${initial_args}`);
@@ -76,7 +76,7 @@ export function vau<T>(
   if (
     args instanceof lisp.Pair &&
     args.snd instanceof lisp.Pair &&
-    args.snd.fst instanceof lisp.Variable
+    args.snd.fst instanceof lisp.Var
   ) {
     const head = args.fst;
     const body = args.snd.snd;

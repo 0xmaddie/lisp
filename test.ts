@@ -24,7 +24,7 @@ Deno.test({
         const xs = lisp.read(code);
         assert(xs.length === 1);
         xs[0].evaluate(ctx, (result) => {
-          assert(result instanceof lisp.Float, `
+          assert(result instanceof lisp.Num, `
 Evaluated ${code} and expected a float, but got:\n${result}`);
           const actual = result.value;
           const expected = body(fst, snd);

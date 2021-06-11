@@ -198,7 +198,7 @@ export class Bool<T> extends Lisp<T> {
   }
 }
 
-export class Float<T> extends Lisp<T> {
+export class Num<T> extends Lisp<T> {
   value: number;
 
   constructor(value: number) {
@@ -211,7 +211,7 @@ export class Float<T> extends Lisp<T> {
   }
 
   equals(rhs: Lisp<T>): boolean {
-    if (rhs instanceof Float) {
+    if (rhs instanceof Num) {
       const epsilon = 0.001;
       const delta = Math.abs(this.value-rhs.value);
       return delta <= epsilon;
@@ -220,7 +220,7 @@ export class Float<T> extends Lisp<T> {
   }
 }
 
-export class Text<T> extends Lisp<T> {
+export class Str<T> extends Lisp<T> {
   value: string;
 
   constructor(value: string) {
@@ -233,14 +233,14 @@ export class Text<T> extends Lisp<T> {
   }
 
   equals(rhs: Lisp<T>): boolean {
-    if (rhs instanceof Text) {
+    if (rhs instanceof Str) {
       return this.value === rhs.value;
     }
     return false;
   }
 }
 
-export class Variable<T> extends Lisp<T> {
+export class Var<T> extends Lisp<T> {
   name: string;
 
   constructor(name: string) {
@@ -270,14 +270,14 @@ export class Variable<T> extends Lisp<T> {
   }
 
   equals(rhs: Lisp<T>): boolean {
-    if (rhs instanceof Variable) {
+    if (rhs instanceof Var) {
       return this.name === rhs.name;
     }
     return false;
   }
 }
 
-function nameof<T>(key: string | Variable<T>): string {
+function nameof<T>(key: string | Var<T>): string {
   if (typeof (key) === "string") {
     return key;
   }
@@ -294,7 +294,7 @@ export class Env<T> extends Lisp<T> {
     this.parent = parent;
   }
 
-  lookup(key: string | Variable<T>): Lisp<T> {
+  lookup(key: string | Var<T>): Lisp<T> {
     const name = nameof(key);
     if (this.frame.has(name)) {
       return this.frame.get(name)!;
@@ -305,12 +305,12 @@ export class Env<T> extends Lisp<T> {
     throw `${key} is undefined`;
   }
 
-  define(key: string | Variable<T>, value: Lisp<T>): void {
+  define(key: string | Var<T>, value: Lisp<T>): void {
     const name = nameof(key);
     this.frame.set(name, value);
   }
 
-  remove(key: string | Variable<T>): void {
+  remove(key: string | Var<T>): void {
     const name = nameof(key);
     this.frame.delete(name);
   }
@@ -330,13 +330,13 @@ export class Vau<T> extends Proc<T> {
   head: Lisp<T>;
   body: Lisp<T>;
   lexical: Env<T>;
-  dynamic: Variable<T>;
+  dynamic: Var<T>;
 
   constructor(
     head: Lisp<T>,
     body: Lisp<T>,
     lexical: Env<T>,
-    dynamic: Variable<T>,
+    dynamic: Var<T>,
   ) {
     super();
     this.head = head;
@@ -430,10 +430,10 @@ export function list<T>(
 
 type Token =
   | { tag: "open" | "close" }
-  | { tag: "text"; value: string }
-  | { tag: "variable"; name: string }
+  | { tag: "str"; value: string }
+  | { tag: "var"; name: string }
   | { tag: "constant"; name: string }
-  | { tag: "float"; value: number };
+  | { tag: "num"; value: number };
 
 export function tokenize(source: string): Token[] {
   let tokens: Token[] = [];
@@ -457,7 +457,7 @@ export function tokenize(source: string): Token[] {
         throw `unbalanced quotes`;
       }
       const value = source.substring(start, index);
-      tokens.push({ tag: "text", value });
+      tokens.push({ tag: "str", value });
       index++;
     } else if (/\s/.test(source[index])) {
       while (/\s/.test(source[index])) {
@@ -482,9 +482,9 @@ export function tokenize(source: string): Token[] {
       } else {
         const maybe_number = Number.parseFloat(content);
         if (!Number.isNaN(maybe_number) && Number.isFinite(maybe_number)) {
-          tokens.push({ tag: "float", value: maybe_number });
+          tokens.push({ tag: "num", value: maybe_number });
         } else {
-          tokens.push({ tag: "variable", name: content });
+          tokens.push({ tag: "var", name: content });
         }
       }
     }
@@ -511,18 +511,18 @@ export function read<T>(source: string): Lisp<T>[] {
         build.push(value);
         break;
       }
-      case "float": {
-        const value = new Float(token.value);
+      case "num": {
+        const value = new Num(token.value);
         build.push(value);
         break;
       }
-      case "text": {
-        const value = new Text(token.value);
+      case "str": {
+        const value = new Str(token.value);
         build.push(value);
         break;
       }
-      case "variable": {
-        const value = new Variable(token.name);
+      case "var": {
+        const value = new Var(token.name);
         build.push(value);
         break;
       }
