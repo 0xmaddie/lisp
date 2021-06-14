@@ -14,8 +14,6 @@ export function initial<T>(): lisp.Env<T> {
     env.define(name, value);
   }
 
-  env.define("nil", lisp.nil());
-
   defvau("vau", proc.vau);
   defvau("if", proc.if_);
 
@@ -25,11 +23,13 @@ export function initial<T>(): lisp.Env<T> {
 
   defwrap("wrap", proc.wrap);
   defwrap("unwrap", proc.unwrap);
+
   defwrap("list", proc.list);
-  defwrap("pr", proc.pr);
 
   defwrap("+", proc.add);
   defwrap("*", proc.mul);
+
+  defwrap("pr", proc.pr);
 
   return env;
 }
