@@ -390,6 +390,10 @@ export class Wrap<T> extends Lisp<T> {
       return this.body.apply(args, ctx, rest);
     });
   }
+
+  toString(): string {
+    return "#<procedure>";
+  }
 }
 
 export type Fproc<T> = (
@@ -414,6 +418,10 @@ export class Proc<T> extends Lisp<T> {
 
   apply(args: Lisp<T>, ctx: Env<T>, rest: Rest<T>): Lisp<T> {
     return this.body(args, ctx, rest);
+  }
+
+  toString(): string {
+    return "#<procedure>";
   }
 }
 
