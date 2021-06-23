@@ -1,7 +1,4 @@
-import * as err from "./error.ts";
-
-export type Ok<T> = (value: Lisp<T>) => void;
-export type Err = (error: err.Error) => void;
+export type Rest<T> = (value: Lisp<T>) => Lisp<T>;
 
 export abstract class Lisp<T> {
   get isList(): boolean {
@@ -12,20 +9,20 @@ export abstract class Lisp<T> {
     return false;
   }
 
-  evaluate(_ctx: Env<T>, ok: Ok<T>, _err: Err): void {
-    return ok(this);
+  evaluate(_ctx: Env<T>, rest: Rest<T>): Lisp<T> {
+    return rest(this);
   }
 
-  evaluateAll(_ctx: Env<T>, _ok: Ok<T>, err: Err): void {
-    return err(`${this} is not a list`);
+  evaluateAll(_ctx: Env<T>, _rest: Rest<T>): Lisp<T> {
+    throw `${this} is not a list`;
   }
 
-  execute(_ctx: Env<T>, _ok: Ok<T>, err: Err): void {
-    return err(`${this} is not a list`);
+  execute(_ctx: Env<T>, _rest: Rest<T>): Lisp<T> {
+    throw `${this} is not a list`;
   }
 
-  apply(_args: Lisp<T>, _ctx: Env<T>, _ok: Ok<T>, err: Err): void {
-    return err(`${this} is not a procedure`);
+  apply(_args: Lisp<T>, _ctx: Env<T>, _rest: Rest<T>): Lisp<T> {
+    throw `${this} is not a procedure`;
   }
 
   bind(args: Lisp<T>, _ctx: Env<T>): void {
@@ -54,12 +51,12 @@ export class Nil<T> extends Lisp<T> {
     return true;
   }
 
-  evaluateAll(_ctx: Env<T>, ok: Ok<T>, _err: Err): void {
-    return ok(this);
+  evaluateAll(_ctx: Env<T>, rest: Rest<T>): Lisp<T> {
+    return rest(this);
   }
 
-  execute(_ctx: Env<T>, ok: Ok<T>, _err: Err): void {
-    return ok(this);
+  execute(_ctx: Env<T>, rest: Rest<T>): Lisp<T> {
+    return rest(this);
   }
 
   bind(rhs: Lisp<T>, _ctx: Env<T>): void {
@@ -99,31 +96,31 @@ export class Pair<T> extends Lisp<T> {
     return this.fst.canBind && this.snd.canBind;
   }
 
-  evaluate(ctx: Env<T>, ok: Ok<T>, err: Err): void {
+  evaluate(ctx: Env<T>, rest: Rest<T>): Lisp<T> {
     return this.fst.evaluate(ctx, (proc) => {
-      return proc.apply(this.snd, ctx, ok, err);
-    }, err);
+      return proc.apply(this.snd, ctx, rest);
+    });
   }
 
-  evaluateAll(ctx: Env<T>, ok: Ok<T>, err: Err): void {
+  evaluateAll(ctx: Env<T>, rest: Rest<T>): Lisp<T> {
     return this.fst.evaluate(ctx, (fst) => {
       return this.snd.evaluateAll(ctx, (snd) => {
         const value = new Pair(fst, snd);
-        return ok(value);
-      }, err);
-    }, err);
+        return rest(value);
+      });
+    });
   }
 
-  execute(ctx: Env<T>, ok: Ok<T>, err: Err): void {
+  execute(ctx: Env<T>, rest: Rest<T>): Lisp<T> {
     return this.fst.evaluate(ctx, (fst) => {
       return this.snd.execute(ctx, (snd) => {
         if (snd instanceof Nil) {
-          return ok(fst);
+          return rest(fst);
         } else {
-          return ok(snd);
+          return rest(snd);
         }
-      }, err);
-    }, err);
+      });
+    });
   }
 
   bind(rhs: Lisp<T>, ctx: Env<T>): void {
@@ -252,13 +249,9 @@ export class Var<T> extends Lisp<T> {
     return true;
   }
 
-  evaluate(ctx: Env<T>, ok: Ok<T>, err: Err): void {
-    try {
-      const binding = ctx.lookup(this);
-      return ok(binding);
-    } catch (error) {
-      return err(error);
-    }
+  evaluate(ctx: Env<T>, rest: Rest<T>): Lisp<T> {
+    const binding = ctx.lookup(this);
+    return rest(binding);
   }
 
   bind(rhs: Lisp<T>, ctx: Env<T>): void {
@@ -345,16 +338,16 @@ export class Vau<T> extends Proc<T> {
     this.dynamic = dynamic;
   }
 
-  apply(args: Lisp<T>, ctx: Env<T>, ok: Ok<T>, err: Err): void {
+  apply(args: Lisp<T>, ctx: Env<T>, rest: Rest<T>): Lisp<T> {
     let local = new Env(this.lexical);
     try {
       this.head.bind(args, local);
       this.dynamic.bind(ctx, local);
-      return this.body.execute(local, ok, err);
+      return this.body.execute(local, rest);
     } catch (_) {
       const lhs = `${this.head} ${this.dynamic}`;
       const rhs = `${args} ${ctx}`;
-      return err(`vau: ${lhs} couldn't bind ${rhs}`);
+      throw `vau: ${lhs} couldn't bind ${rhs}`;
     }
   }
 }
@@ -367,19 +360,18 @@ export class Wrap<T> extends Proc<T> {
     this.body = body;
   }
 
-  apply(args: Lisp<T>, ctx: Env<T>, ok: Ok<T>, err: Err): void {
+  apply(args: Lisp<T>, ctx: Env<T>, rest: Rest<T>): Lisp<T> {
     return args.evaluateAll(ctx, (args) => {
-      return this.body.apply(args, ctx, ok, err);
-    }, err);
+      return this.body.apply(args, ctx, rest);
+    });
   }
 }
 
 export type Fnat<T> = (
   args: Lisp<T>,
   ctx: Env<T>,
-  ok: Ok<T>,
-  err: Err,
-) => void;
+  rest: Rest<T>,
+) => Lisp<T>;
 
 export class Native<T> extends Proc<T> {
   name: string;
@@ -391,8 +383,8 @@ export class Native<T> extends Proc<T> {
     this.body = body;
   }
 
-  apply(args: Lisp<T>, ctx: Env<T>, ok: Ok<T>, err: Err): void {
-    return this.body(args, ctx, ok, err);
+  apply(args: Lisp<T>, ctx: Env<T>, rest: Rest<T>): Lisp<T> {
+    return this.body(args, ctx, rest);
   }
 }
 

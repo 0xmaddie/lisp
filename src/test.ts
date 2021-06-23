@@ -3,8 +3,6 @@ import { initial } from "./env.ts";
 
 import {
   assert,
-  fail,
-  assertEquals,
 } from "https://deno.land/std@0.97.0/testing/asserts.ts";
 
 Deno.test({
@@ -31,8 +29,7 @@ Evaluated ${code} and expected a float, but got:\n${result}`);
           const epsilon = 0.001;
           const delta = Math.abs(expected-actual);
           assert(delta <= epsilon, `expected ${expected} but got ${actual}`);
-        }, (error) => {
-          fail(`${error}`);
+          return result;
         });
       }
     }
@@ -66,8 +63,7 @@ Deno.test({
         body[0].evaluate(ctx, (result) => {
           assert(result instanceof lisp.Bool);
           assert(result.equals(row[2]));
-        }, (error) => {
-          fail(`${error}`);
+          return result;
         });
       }
     }
