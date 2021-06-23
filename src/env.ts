@@ -4,13 +4,13 @@ import * as proc from "./proc.ts";
 export function initial<T>(): lisp.Env<T> {
   let env = new lisp.Env();
 
-  function defvau(name: string, body: lisp.Fnat<T>): void {
-    const value = new lisp.Native(name, body);
+  function defvau(name: string, body: lisp.Fproc<T>): void {
+    const value = new lisp.Proc(name, body);
     env.define(name, value);
   }
 
-  function defwrap(name: string, body: lisp.Fnat<T>): void {
-    const value = new lisp.Wrap(new lisp.Native(name, body));
+  function defwrap(name: string, body: lisp.Fproc<T>): void {
+    const value = new lisp.Wrap(new lisp.Proc(name, body));
     env.define(name, value);
   }
 

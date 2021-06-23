@@ -9,6 +9,10 @@ export abstract class Lisp<T> {
     return false;
   }
 
+  get canApply(): boolean {
+    return false;
+  }
+
   evaluate(_ctx: Env<T>, rest: Rest<T>): Lisp<T> {
     return rest(this);
   }
@@ -287,6 +291,21 @@ export class Env<T> extends Lisp<T> {
     this.parent = parent;
   }
 
+  get canApply(): boolean {
+    return true;
+  }
+
+  apply(args: Lisp<T>, _ctx: Env<T>, rest: Rest<T>): Lisp<T> {
+    if (
+      args instanceof Pair &&
+      args.fst instanceof Var &&
+      args.snd instanceof Nil
+    ) {
+      return rest(this.lookup(args.fst));
+    }
+    throw `Env#apply: ${args}`;
+  }
+
   lookup(key: string | Var<T>): Lisp<T> {
     const name = nameof(key);
     if (this.frame.has(name)) {
@@ -313,13 +332,7 @@ export class Env<T> extends Lisp<T> {
   }
 }
 
-export abstract class Proc<T> extends Lisp<T> {
-  toString(): string {
-    return `#<procedure>`;
-  }
-}
-
-export class Vau<T> extends Proc<T> {
+export class Vau<T> extends Lisp<T> {
   head: Lisp<T>;
   body: Lisp<T>;
   lexical: Env<T>;
@@ -338,6 +351,10 @@ export class Vau<T> extends Proc<T> {
     this.dynamic = dynamic;
   }
 
+  get canApply(): boolean {
+    return true;
+  }
+
   apply(args: Lisp<T>, ctx: Env<T>, rest: Rest<T>): Lisp<T> {
     let local = new Env(this.lexical);
     try {
@@ -350,14 +367,22 @@ export class Vau<T> extends Proc<T> {
       throw `vau: ${lhs} couldn't bind ${rhs}`;
     }
   }
+
+  toString(): string {
+    return "#<procedure>";
+  }
 }
 
-export class Wrap<T> extends Proc<T> {
-  body: Proc<T>;
+export class Wrap<T> extends Lisp<T> {
+  body: Lisp<T>;
 
-  constructor(body: Proc<T>) {
+  constructor(body: Lisp<T>) {
     super();
     this.body = body;
+  }
+
+  get canApply(): boolean {
+    return true;
   }
 
   apply(args: Lisp<T>, ctx: Env<T>, rest: Rest<T>): Lisp<T> {
@@ -367,20 +392,24 @@ export class Wrap<T> extends Proc<T> {
   }
 }
 
-export type Fnat<T> = (
+export type Fproc<T> = (
   args: Lisp<T>,
   ctx: Env<T>,
   rest: Rest<T>,
 ) => Lisp<T>;
 
-export class Native<T> extends Proc<T> {
+export class Proc<T> extends Lisp<T> {
   name: string;
-  body: Fnat<T>;
+  body: Fproc<T>;
 
-  constructor(name: string, body: Fnat<T>) {
+  constructor(name: string, body: Fproc<T>) {
     super();
     this.name = name;
     this.body = body;
+  }
+
+  get canApply(): boolean {
+    return true;
   }
 
   apply(args: Lisp<T>, ctx: Env<T>, rest: Rest<T>): Lisp<T> {

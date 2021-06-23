@@ -91,7 +91,7 @@ export function wrap<T>(
 ): lisp.Lisp<T> {
   if (
     args instanceof lisp.Pair &&
-    args.fst instanceof lisp.Proc &&
+    args.fst.canApply &&
     args.snd instanceof lisp.Nil
   ) {
     const result = new lisp.Wrap(args.fst);
@@ -144,10 +144,10 @@ export function shift<T>(
   }
   if (
     args instanceof lisp.Pair &&
-    args.fst instanceof lisp.Proc &&
+    args.fst.canApply &&
     args.snd instanceof lisp.Nil
   ) {
-    const ks = new lisp.Wrap(new lisp.Native("shift#<closure>", closure));
+    const ks = new lisp.Wrap(new lisp.Proc("shift#<closure>", closure));
     const xs = new lisp.Pair(ks, lisp.nil());
     return args.fst.apply(xs, ctx, (x) => x);
   }
