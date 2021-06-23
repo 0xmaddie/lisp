@@ -116,6 +116,44 @@ export function unwrap<T>(
   throw `unwrap: ${args}`;
 }
 
+export function reset<T>(
+  args: lisp.Lisp<T>,
+  ctx: lisp.Env<T>,
+  rest: lisp.Rest<T>,
+): lisp.Lisp<T> {
+  return rest(args.execute(ctx, (x) => x));
+}
+
+export function shift<T>(
+  args: lisp.Lisp<T>,
+  ctx: lisp.Env<T>,
+  rest_outer: lisp.Rest<T>,
+): lisp.Lisp<T> {
+  function closure(
+    args: lisp.Lisp<T>,
+    _ctx: lisp.Env<T>,
+    rest_inner: lisp.Rest<T>,
+  ): lisp.Lisp<T> {
+    if (
+      args instanceof lisp.Pair &&
+      args.snd instanceof lisp.Nil
+    ) {
+      return rest_inner(rest_outer(args.fst));
+    }
+    throw `shift#<closure>: ${args}`;
+  }
+  if (
+    args instanceof lisp.Pair &&
+    args.fst instanceof lisp.Proc &&
+    args.snd instanceof lisp.Nil
+  ) {
+    const ks = new lisp.Wrap(new lisp.Native("shift#<closure>", closure));
+    const xs = new lisp.Pair(ks, lisp.nil());
+    return args.fst.apply(xs, ctx, (x) => x);
+  }
+  throw `shift: ${args}`;
+}
+
 export function if_<T>(
   args: lisp.Lisp<T>,
   ctx: lisp.Env<T>,

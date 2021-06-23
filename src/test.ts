@@ -6,7 +6,7 @@ import {
 } from "https://deno.land/std@0.97.0/testing/asserts.ts";
 
 Deno.test({
-  name: "lisp-sanity-arithmetic",
+  name: "arithmetic sanity",
   fn: () => {
     let ctx = initial();
     const iterations = 1024;
@@ -35,8 +35,9 @@ Evaluated ${code} and expected a float, but got:\n${result}`);
     }
   },
 });
+
 Deno.test({
-  name: "lisp-sanity-bool",
+  name: "boolean sanity",
   fn: () => {
     let ctx = initial();
     const lisp_f = lisp.read("#f")[0];
@@ -67,5 +68,18 @@ Deno.test({
         });
       }
     }
+  },
+});
+
+Deno.test({
+  name: "shift/reset sanity",
+  fn(): void {
+    let ctx = initial();
+    const code = `(* 2 (reset (+ 1 (shift (wrap (vau (k) e (k 5)))))))`;
+    const body = lisp.read(code);
+    assert(body.length === 1);
+    const result = body[0].evaluate(ctx, (x) => x);
+    assert(result instanceof lisp.Num);
+    assert(result.value === 12);
   },
 });

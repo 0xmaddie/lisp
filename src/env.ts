@@ -23,6 +23,8 @@ export function initial<T>(): lisp.Env<T> {
 
   defwrap("wrap", proc.wrap);
   defwrap("unwrap", proc.unwrap);
+  defwrap("reset", proc.reset);
+  defwrap("shift", proc.shift);
 
   defwrap("list", proc.list);
 
