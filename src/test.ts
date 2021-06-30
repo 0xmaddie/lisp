@@ -3,6 +3,7 @@ import { initial } from "./env.ts";
 
 import {
   assert,
+  assertEquals,
 } from "https://deno.land/std@0.97.0/testing/asserts.ts";
 
 Deno.test({
@@ -81,5 +82,21 @@ Deno.test({
     const result = body[0].evaluate(ctx, (x) => x);
     assert(result instanceof lisp.Num);
     assert(result.value === 12);
+  },
+});
+
+Deno.test({
+  name: "dotted lists",
+  fn(): void {
+    const code = "(1 . 2)";
+    const body0 = lisp.read(code);
+    const print = `${body0[0]}`;
+    const body1 = lisp.read(print);
+    const expected = new lisp.Pair(
+      new lisp.Num(1),
+      new lisp.Num(2),
+    );
+    assertEquals(body0, body1);
+    assertEquals(body0[0], expected);
   },
 });

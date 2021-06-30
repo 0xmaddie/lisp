@@ -1,3 +1,5 @@
+import { assert } from "https://deno.land/std@0.97.0/testing/asserts.ts";
+
 export type Rest<T> = (value: Lisp<T>) => Lisp<T>;
 
 export abstract class Lisp<T> {
@@ -163,7 +165,7 @@ export class Pair<T> extends Lisp<T> {
       }
       throw `toString on invalid list: ${this}`;
     }
-    return `(${this.fst} * ${this.snd})`;
+    return `(${this.fst} . ${this.snd})`;
   }
 
   equals(rhs: Lisp<T>): boolean {
@@ -449,16 +451,27 @@ export function nil<T>(): Lisp<T> {
 
 export function list<T>(
   xs: Lisp<T>[],
+  options?: { dot: boolean },
 ): Lisp<T> {
-  let state = new Nil();
-  for (let i = xs.length - 1; i >= 0; --i) {
+  options = options || { dot: false };
+  let state;
+  let start;
+  if (options.dot) {
+    assert(xs.length >= 1);
+    state = xs[xs.length-1];
+    start = xs.length-2;
+  } else {
+    state = new Nil();
+    start = xs.length-1;
+  }
+  for (let i = start; i>=0; --i) {
     state = new Pair(xs[i], state);
   }
   return state;
 }
 
 type Token =
-  | { tag: "open" | "close" }
+  | { tag: "open" | "close" | "dot" }
   | { tag: "str"; value: string }
   | { tag: "var"; name: string }
   | { tag: "constant"; name: string }
@@ -473,6 +486,9 @@ export function tokenize(source: string): Token[] {
       index++;
     } else if (source[index] === ")") {
       tokens.push({ tag: "close" });
+      index++;
+    } else if (source[index] === ".") {
+      tokens.push({ tag: "dot" });
       index++;
     } else if (source[index] === '"') {
       const start = ++index;
@@ -523,21 +539,36 @@ export function tokenize(source: string): Token[] {
 
 export function read<T>(source: string): Lisp<T>[] {
   let stack: Lisp<T>[][] = [];
+  let dot_stack: boolean[] = [];
   let build: Lisp<T>[] = [];
-  for (const token of tokenize(source)) {
+  let dot = false;
+  const tokens = tokenize(source);
+  for (let i = 0; i < tokens.length; ++i) {
+    const token = tokens[i];
     switch (token.tag) {
       case "open": {
         stack.push(build);
         build = [];
+        dot_stack.push(dot);
+        dot = false;
         break;
       }
       case "close": {
         if (stack.length === 0) {
           throw `unbalanced parentheses`;
         }
-        const value = list(build);
+        const value = list(build, { dot });
         build = stack.pop()!;
         build.push(value);
+        dot = dot_stack.pop()!;
+        break;
+      }
+      case "dot": {
+        if (dot === false) {
+          dot = true;
+        } else {
+          throw `too many dots`;
+        }
         break;
       }
       case "num": {
