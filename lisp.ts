@@ -538,27 +538,25 @@ export function tokenize(source: string): Token[] {
 }
 
 export function read<T>(source: string): Lisp<T>[] {
-  let stack: Lisp<T>[][] = [];
+  let build_stack: Lisp<T>[][] = [];
   let dot_stack: boolean[] = [];
   let build: Lisp<T>[] = [];
   let dot = false;
-  const tokens = tokenize(source);
-  for (let i = 0; i < tokens.length; ++i) {
-    const token = tokens[i];
+  for (const token of tokenize(source)) {
     switch (token.tag) {
       case "open": {
-        stack.push(build);
+        build_stack.push(build);
         build = [];
         dot_stack.push(dot);
         dot = false;
         break;
       }
       case "close": {
-        if (stack.length === 0) {
+        if (build_stack.length === 0) {
           throw `unbalanced parentheses`;
         }
         const value = list(build, { dot });
-        build = stack.pop()!;
+        build = build_stack.pop()!;
         build.push(value);
         dot = dot_stack.pop()!;
         break;
@@ -567,7 +565,7 @@ export function read<T>(source: string): Lisp<T>[] {
         if (dot === false) {
           dot = true;
         } else {
-          throw `too many dots`;
+          throw `too many dots: ${source}`;
         }
         break;
       }
@@ -605,7 +603,7 @@ export function read<T>(source: string): Lisp<T>[] {
       }
     }
   }
-  if (stack.length !== 0) {
+  if (build_stack.length !== 0 || dot_stack.length !== 0) {
     throw `unbalanced parentheses`;
   }
   return build;
