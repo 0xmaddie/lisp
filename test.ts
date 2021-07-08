@@ -1,5 +1,4 @@
-import * as lisp from "./lisp.ts";
-import { initial } from "./env.ts";
+import * as lisp from "./mod.ts";
 
 import {
   assert,
@@ -9,7 +8,7 @@ import {
 Deno.test({
   name: "arithmetic sanity",
   fn: () => {
-    let ctx = initial();
+    let ctx = lisp.initial();
     const iterations = 1024;
     const operators: any = [
       ["+", (a: number, b: number) => a + b],
@@ -23,12 +22,15 @@ Deno.test({
         const xs = lisp.read(code);
         assert(xs.length === 1);
         xs[0].evaluate(ctx, (result) => {
-          assert(result instanceof lisp.Num, `
-Evaluated ${code} and expected a float, but got:\n${result}`);
+          assert(
+            result instanceof lisp.Num,
+            `
+Evaluated ${code} and expected a float, but got:\n${result}`,
+          );
           const actual = result.value;
           const expected = body(fst, snd);
           const epsilon = 0.001;
-          const delta = Math.abs(expected-actual);
+          const delta = Math.abs(expected - actual);
           assert(delta <= epsilon, `expected ${expected} but got ${actual}`);
           return result;
         });
@@ -40,7 +42,7 @@ Evaluated ${code} and expected a float, but got:\n${result}`);
 Deno.test({
   name: "boolean sanity",
   fn: () => {
-    let ctx = initial();
+    let ctx = lisp.initial();
     const lisp_f = lisp.read("#f")[0];
     const lisp_t = lisp.read("#t")[0];
     let truth_table: any = {
@@ -75,7 +77,7 @@ Deno.test({
 Deno.test({
   name: "shift/reset sanity",
   fn(): void {
-    let ctx = initial();
+    let ctx = lisp.initial();
     const code = `(* 2 (reset (+ 1 (shift (wrap (vau (k) e (k 5)))))))`;
     const body = lisp.read(code);
     assert(body.length === 1);
