@@ -66,7 +66,7 @@ Deno.test({
         assert(body.length === 1);
         body[0].evaluate(ctx, (result) => {
           assert(result instanceof lisp.Bool);
-          assert(result.equals(row[2]));
+          assert(result.equal(row[2]));
           return result;
         });
       }

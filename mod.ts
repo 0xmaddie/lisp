@@ -39,7 +39,7 @@ export abstract class Lisp<T> {
     throw `${this} is not a list`;
   }
 
-  equals(rhs: Lisp<T>): boolean {
+  equal(rhs: Lisp<T>): boolean {
     return this === rhs;
   }
 }
@@ -79,7 +79,7 @@ export class Nil<T> extends Lisp<T> {
     return "()";
   }
 
-  equals(rhs: Lisp<T>): boolean {
+  equal(rhs: Lisp<T>): boolean {
     return rhs instanceof Nil;
   }
 }
@@ -168,10 +168,10 @@ export class Pair<T> extends Lisp<T> {
     return `(${this.fst} . ${this.snd})`;
   }
 
-  equals(rhs: Lisp<T>): boolean {
+  equal(rhs: Lisp<T>): boolean {
     if (rhs instanceof Pair) {
-      if (this.fst.equals(rhs.fst)) {
-        return this.snd.equals(rhs.snd);
+      if (this.fst.equal(rhs.fst)) {
+        return this.snd.equal(rhs.snd);
       }
     }
     return false;
@@ -193,7 +193,7 @@ export class Bool<T> extends Lisp<T> {
     return "#f";
   }
 
-  equals(rhs: Lisp<T>): boolean {
+  equal(rhs: Lisp<T>): boolean {
     if (rhs instanceof Bool) {
       return this.value === rhs.value;
     }
@@ -213,7 +213,7 @@ export class Num<T> extends Lisp<T> {
     return `${this.value}`;
   }
 
-  equals(rhs: Lisp<T>): boolean {
+  equal(rhs: Lisp<T>): boolean {
     if (rhs instanceof Num) {
       const epsilon = 0.001;
       const delta = Math.abs(this.value - rhs.value);
@@ -235,7 +235,7 @@ export class Str<T> extends Lisp<T> {
     return `"${this.value}"`;
   }
 
-  equals(rhs: Lisp<T>): boolean {
+  equal(rhs: Lisp<T>): boolean {
     if (rhs instanceof Str) {
       return this.value === rhs.value;
     }
@@ -243,7 +243,7 @@ export class Str<T> extends Lisp<T> {
   }
 }
 
-export class Var<T> extends Lisp<T> {
+export class Sym<T> extends Lisp<T> {
   name: string;
 
   constructor(name: string) {
@@ -268,15 +268,15 @@ export class Var<T> extends Lisp<T> {
     return this.name;
   }
 
-  equals(rhs: Lisp<T>): boolean {
-    if (rhs instanceof Var) {
+  equal(rhs: Lisp<T>): boolean {
+    if (rhs instanceof Sym) {
       return this.name === rhs.name;
     }
     return false;
   }
 }
 
-function nameof<T>(key: string | Var<T>): string {
+function nameof<T>(key: string | Sym<T>): string {
   if (typeof (key) === "string") {
     return key;
   }
@@ -300,7 +300,7 @@ export class Env<T> extends Lisp<T> {
   apply(args: Lisp<T>, _ctx: Env<T>, rest: Rest<T>): Lisp<T> {
     if (
       args instanceof Pair &&
-      args.fst instanceof Var &&
+      args.fst instanceof Sym &&
       args.snd instanceof Nil
     ) {
       return rest(this.lookup(args.fst));
@@ -308,7 +308,7 @@ export class Env<T> extends Lisp<T> {
     throw `Env#apply: ${args}`;
   }
 
-  lookup(key: string | Var<T>): Lisp<T> {
+  lookup(key: string | Sym<T>): Lisp<T> {
     const name = nameof(key);
     if (this.frame.has(name)) {
       return this.frame.get(name)!;
@@ -319,12 +319,12 @@ export class Env<T> extends Lisp<T> {
     throw `${key} is undefined`;
   }
 
-  define(key: string | Var<T>, value: Lisp<T>): void {
+  define(key: string | Sym<T>, value: Lisp<T>): void {
     const name = nameof(key);
     this.frame.set(name, value);
   }
 
-  remove(key: string | Var<T>): void {
+  remove(key: string | Sym<T>): void {
     const name = nameof(key);
     this.frame.delete(name);
   }
@@ -338,13 +338,13 @@ export class Vau<T> extends Lisp<T> {
   head: Lisp<T>;
   body: Lisp<T>;
   lexical: Env<T>;
-  dynamic: Var<T>;
+  dynamic: Sym<T>;
 
   constructor(
     head: Lisp<T>,
     body: Lisp<T>,
     lexical: Env<T>,
-    dynamic: Var<T>,
+    dynamic: Sym<T>,
   ) {
     super();
     this.head = head;
@@ -419,7 +419,11 @@ export class Proc<T> extends Lisp<T> {
   }
 
   apply(args: Lisp<T>, ctx: Env<T>, rest: Rest<T>): Lisp<T> {
-    return this.body(args, ctx, rest);
+    try {
+      return this.body(args, ctx, rest);
+    } catch(error) {
+      throw `${this.name}: ${args}`;
+    }
   }
 
   toString(): string {
@@ -439,14 +443,22 @@ export class Embed<T> extends Lisp<T> {
     return `${this.body}`;
   }
 
-  equals(rhs: Lisp<T>): boolean {
-    // TODO: `equals` constraint on T
+  equal(rhs: Lisp<T>): boolean {
+    // TODO: `equal` constraint on T
     return false;
   }
 }
 
 export function nil<T>(): Lisp<T> {
   return new Nil();
+}
+
+export function t<T>(): Lisp<T> {
+  return new Bool(true);
+}
+
+export function f<T>(): Lisp<T> {
+  return new Bool(false);
 }
 
 export function list<T>(
@@ -473,7 +485,7 @@ export function list<T>(
 type Token =
   | { tag: "open" | "close" | "dot" }
   | { tag: "str"; value: string }
-  | { tag: "var"; name: string }
+  | { tag: "sym"; name: string }
   | { tag: "constant"; name: string }
   | { tag: "num"; value: number };
 
@@ -529,7 +541,7 @@ export function tokenize(source: string): Token[] {
         if (!Number.isNaN(maybe_number) && Number.isFinite(maybe_number)) {
           tokens.push({ tag: "num", value: maybe_number });
         } else {
-          tokens.push({ tag: "var", name: content });
+          tokens.push({ tag: "sym", name: content });
         }
       }
     }
@@ -579,8 +591,8 @@ export function read<T>(source: string): Lisp<T>[] {
         build.push(value);
         break;
       }
-      case "var": {
-        const value = new Var(token.name);
+      case "sym": {
+        const value = new Sym(token.name);
         build.push(value);
         break;
       }
