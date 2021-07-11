@@ -330,7 +330,7 @@ export class Env<T> extends Lisp<T> {
   }
 
   toString(): string {
-    return "#<environment>";
+    return "#<env>";
   }
 }
 
@@ -371,7 +371,7 @@ export class Vau<T> extends Lisp<T> {
   }
 
   toString(): string {
-    return "#<procedure>";
+    return "#<proc>";
   }
 }
 
@@ -394,7 +394,7 @@ export class Wrap<T> extends Lisp<T> {
   }
 
   toString(): string {
-    return "#<procedure>";
+    return "#<proc>";
   }
 }
 
@@ -421,13 +421,13 @@ export class Proc<T> extends Lisp<T> {
   apply(args: Lisp<T>, ctx: Env<T>, rest: Rest<T>): Lisp<T> {
     try {
       return this.body(args, ctx, rest);
-    } catch(error) {
+    } catch (error) {
       throw `${this.name}: ${args}`;
     }
   }
 
   toString(): string {
-    return "#<procedure>";
+    return "#<proc>";
   }
 }
 
