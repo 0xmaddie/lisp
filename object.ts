@@ -15,7 +15,7 @@ export abstract class Object<T> {
     return false;
   }
 
-  get length(): number {
+  get len(): number {
     throw `${this} is not a list`;
   }
 
@@ -65,7 +65,7 @@ export class Nil<T> extends Object<T> {
     return true;
   }
 
-  get length(): number {
+  get len(): number {
     return 0;
   }
 
@@ -118,8 +118,8 @@ export class Pair<T> extends Object<T> {
     return this.fst.canBind && this.snd.canBind;
   }
 
-  get length(): number {
-    return 1 + this.snd.length;
+  get len(): number {
+    return 1 + this.snd.len;
   }
 
   append(rhs: Object<T>): Object<T> {

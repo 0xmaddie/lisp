@@ -80,6 +80,22 @@ function proc_macro<T>(
   return rest(result);
 }
 
+function proc_fn<T>(
+  args: lisp.Object<T>,
+  ctx: lisp.Env<T>,
+  rest: lisp.Rest<T>,
+): lisp.Object<T> {
+  if (!(args instanceof lisp.Pair)) throw args;
+  const head = args.fst;
+  const body = args.snd;
+  const dynamic = new lisp.Sym("_");
+  const lexical = ctx;
+  const result = new lisp.Fn(
+    new lisp.Macro(head, body, lexical, dynamic),
+  );
+  return rest(result);
+}
+
 function proc_and<T>(
   args: lisp.Object<T>,
   _ctx: lisp.Env<T>,
@@ -266,7 +282,7 @@ function proc_snd<T>(
   return rest(args.fst.snd);
 }
 
-function proc_length<T>(
+function proc_len<T>(
   args: lisp.Object<T>,
   _ctx: lisp.Env<T>,
   rest: lisp.Rest<T>,
@@ -275,7 +291,7 @@ function proc_length<T>(
   if (!(args.fst instanceof lisp.Pair)) throw args;
   if (!(args.fst.isList)) throw args;
   if (!(args.snd instanceof lisp.Nil)) throw args;
-  return rest(new lisp.Num(args.fst.length));
+  return rest(new lisp.Num(args.fst.len));
 }
 
 function proc_append<T>(
@@ -452,7 +468,7 @@ export default function initial<T>(): lisp.Env<T> {
   fn("pair", proc_pair);
   fn("fst", proc_fst);
   fn("snd", proc_snd);
-  fn("length", proc_length);
+  fn("len", proc_len);
   fn("append", proc_append);
   //fn("map", proc_map);
   //fn("filter", proc_filter);
@@ -460,7 +476,7 @@ export default function initial<T>(): lisp.Env<T> {
 
   // Procedures
   macro("macro", proc_macro);
-  //macro("fn", proc_fn);
+  macro("fn", proc_fn);
   fn("proc?", proc_is_proc);
   fn("macro?", proc_is_macro);
   fn("fn?", proc_is_fn);
@@ -478,13 +494,13 @@ export default function initial<T>(): lisp.Env<T> {
   //macro("let*", proc_let_star);
 
   // Bools
-  fn("boolean?", proc_is_bool);
+  fn("bool?", proc_is_bool);
   fn("and", proc_and);
   fn("or", proc_or);
   fn("not", proc_not);
 
   // Numbers
-  fn("number?", proc_is_num);
+  fn("num?", proc_is_num);
   fn("+", proc_add);
   fn("*", proc_mul);
   fn("-", proc_neg);
@@ -506,11 +522,11 @@ export default function initial<T>(): lisp.Env<T> {
   //fn("tanh", proc_tanh);
 
   // Symbols
-  fn("symbol?", proc_is_sym);
+  fn("sym?", proc_is_sym);
   //fn("string->symbol", proc_str2sym);
 
   // Strings
-  fn("string?", proc_is_str);
+  fn("str?", proc_is_str);
   //fn("symbol->string", proc_sym2str);
 
   // Control
