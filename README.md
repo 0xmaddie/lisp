@@ -2,6 +2,19 @@ A Lisp dialect based on John Shutt's vau calculus.
 
 ---
 
+What else is needed for an initial demonstration?
+
+- Conditions and restarts would be good for a solid narrative on
+  testing and debugging.
+  
+- Complete the initial environment, maybe by comparing to R*RS, R^-1RK
+  etc.
+  
+- Language server, and Emacs integration? This is nice to have but is
+  not very high priority.
+
+---
+
 I'm planning on using this Lisp as a metalanguage, as John described on Lambda
 the Ultimate:
 

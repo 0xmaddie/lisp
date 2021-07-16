@@ -78,7 +78,7 @@ Deno.test({
   name: "shift/reset sanity",
   fn(): void {
     let ctx = lisp.initial();
-    const code = `(* 2 (reset (+ 1 (shift (wrap (vau (k) e (k 5)))))))`;
+    const code = `(* 2 (reset (+ 1 (shift (wrap (macro (k) e (k 5)))))))`;
     const body = lisp.read(code);
     assert(body.length === 1);
     const result = body[0].evaluate(ctx, (x) => x);

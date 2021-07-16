@@ -1,6 +1,4 @@
-import {
-  assert,
-} from "https://deno.land/std@0.97.0/testing/asserts.ts";
+import { assert } from "https://deno.land/std@0.97.0/testing/asserts.ts";
 
 import * as lisp from "./mod.ts";
 

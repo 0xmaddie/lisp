@@ -1,13 +1,19 @@
 import * as lisp from "./mod.ts";
 
+function* reverse<T>(xs: T[]): Iterable<T> {
+  for (let i = xs.length - 1; i >= 0; --i) {
+    yield xs[i];
+  }
+}
+
 function mk_type<T>(
-  check: (value: lisp.Lisp<T>) => boolean,
+  check: (value: lisp.Object<T>) => boolean,
 ): lisp.Fproc<T> {
   return (
-    args: lisp.Lisp<T>,
+    args: lisp.Object<T>,
     ctx: lisp.Env<T>,
     rest: lisp.Rest<T>,
-  ): lisp.Lisp<T> => {
+  ): lisp.Object<T> => {
     while (args instanceof lisp.Pair) {
       if (!check(args.fst)) {
         return rest(lisp.f());
@@ -20,10 +26,10 @@ function mk_type<T>(
 }
 
 function proc_is_equal<T>(
-  args: lisp.Lisp<T>,
+  args: lisp.Object<T>,
   _ctx: lisp.Env<T>,
   rest: lisp.Rest<T>,
-): lisp.Lisp<T> {
+): lisp.Object<T> {
   let state;
   while (args instanceof lisp.Pair) {
     if (state === undefined) {
@@ -40,10 +46,10 @@ function proc_is_equal<T>(
 }
 
 function proc_if<T>(
-  args: lisp.Lisp<T>,
+  args: lisp.Object<T>,
   ctx: lisp.Env<T>,
   rest: lisp.Rest<T>,
-): lisp.Lisp<T> {
+): lisp.Object<T> {
   if (!(args instanceof lisp.Pair)) throw args;
   return args.fst.evaluate(ctx, (flag) => {
     if (!(args.snd instanceof lisp.Pair)) throw args;
@@ -58,11 +64,11 @@ function proc_if<T>(
   });
 }
 
-function proc_vau<T>(
-  args: lisp.Lisp<T>,
+function proc_macro<T>(
+  args: lisp.Object<T>,
   ctx: lisp.Env<T>,
   rest: lisp.Rest<T>,
-): lisp.Lisp<T> {
+): lisp.Object<T> {
   if (!(args instanceof lisp.Pair)) throw args;
   if (!(args.snd instanceof lisp.Pair)) throw args;
   if (!(args.snd.fst instanceof lisp.Sym)) throw args;
@@ -70,15 +76,15 @@ function proc_vau<T>(
   const body = args.snd.snd;
   const lexical = ctx;
   const dynamic = args.snd.fst;
-  const result = new lisp.Vau(head, body, lexical, dynamic);
+  const result = new lisp.Macro(head, body, lexical, dynamic);
   return rest(result);
 }
 
 function proc_and<T>(
-  args: lisp.Lisp<T>,
+  args: lisp.Object<T>,
   _ctx: lisp.Env<T>,
   rest: lisp.Rest<T>,
-): lisp.Lisp<T> {
+): lisp.Object<T> {
   while (args instanceof lisp.Pair) {
     if (!(args.fst instanceof lisp.Bool)) throw arguments[0];
     if (!args.fst.value) {
@@ -91,10 +97,10 @@ function proc_and<T>(
 }
 
 function proc_or<T>(
-  args: lisp.Lisp<T>,
+  args: lisp.Object<T>,
   _ctx: lisp.Env<T>,
   rest: lisp.Rest<T>,
-): lisp.Lisp<T> {
+): lisp.Object<T> {
   while (args instanceof lisp.Pair) {
     if (!(args.fst instanceof lisp.Bool)) throw arguments[0];
     if (args.fst.value) {
@@ -107,10 +113,10 @@ function proc_or<T>(
 }
 
 function proc_not<T>(
-  args: lisp.Lisp<T>,
+  args: lisp.Object<T>,
   _ctx: lisp.Env<T>,
   rest: lisp.Rest<T>,
-): lisp.Lisp<T> {
+): lisp.Object<T> {
   if (!(args instanceof lisp.Pair)) throw args;
   if (!(args.fst instanceof lisp.Bool)) throw args;
   if (!(args.snd instanceof lisp.Nil)) throw args;
@@ -119,47 +125,47 @@ function proc_not<T>(
 }
 
 function proc_wrap<T>(
-  args: lisp.Lisp<T>,
+  args: lisp.Object<T>,
   _ctx: lisp.Env<T>,
   rest: lisp.Rest<T>,
-): lisp.Lisp<T> {
+): lisp.Object<T> {
   if (!(args instanceof lisp.Pair)) throw args;
   if (!args.fst.canApply) throw args;
   if (!(args.snd instanceof lisp.Nil)) throw args;
-  const result = new lisp.Wrap(args.fst);
+  const result = new lisp.Fn(args.fst);
   return rest(result);
 }
 
 function proc_unwrap<T>(
-  args: lisp.Lisp<T>,
+  args: lisp.Object<T>,
   _ctx: lisp.Env<T>,
   rest: lisp.Rest<T>,
-): lisp.Lisp<T> {
+): lisp.Object<T> {
   if (!(args instanceof lisp.Pair)) throw args;
-  if (!(args.fst instanceof lisp.Wrap)) throw args;
+  if (!(args.fst instanceof lisp.Fn)) throw args;
   if (!(args.snd instanceof lisp.Nil)) throw args;
   const result = args.fst.body;
   return rest(result);
 }
 
 function proc_reset<T>(
-  args: lisp.Lisp<T>,
+  args: lisp.Object<T>,
   ctx: lisp.Env<T>,
   rest: lisp.Rest<T>,
-): lisp.Lisp<T> {
+): lisp.Object<T> {
   return rest(args.execute(ctx, (x) => x));
 }
 
 function proc_shift<T>(
-  args: lisp.Lisp<T>,
+  args: lisp.Object<T>,
   ctx: lisp.Env<T>,
   rest_outer: lisp.Rest<T>,
-): lisp.Lisp<T> {
+): lisp.Object<T> {
   function closure(
-    args: lisp.Lisp<T>,
+    args: lisp.Object<T>,
     _ctx: lisp.Env<T>,
     rest_inner: lisp.Rest<T>,
-  ): lisp.Lisp<T> {
+  ): lisp.Object<T> {
     if (!(args instanceof lisp.Pair)) throw args;
     if (!(args.snd instanceof lisp.Nil)) throw args;
     return rest_inner(rest_outer(args.fst));
@@ -167,7 +173,7 @@ function proc_shift<T>(
   if (!(args instanceof lisp.Pair)) throw args;
   if (!args.fst.canApply) throw args;
   if (!(args.snd instanceof lisp.Nil)) throw args;
-  const ks = new lisp.Wrap(
+  const ks = new lisp.Fn(
     new lisp.Proc("shift#<closure>", closure),
   );
   const xs = new lisp.Pair(ks, lisp.nil());
@@ -175,10 +181,10 @@ function proc_shift<T>(
 }
 
 function proc_eval<T>(
-  args: lisp.Lisp<T>,
+  args: lisp.Object<T>,
   _ctx: lisp.Env<T>,
   rest: lisp.Rest<T>,
-): lisp.Lisp<T> {
+): lisp.Object<T> {
   if (!(args instanceof lisp.Pair)) throw args;
   if (!(args.snd instanceof lisp.Pair)) throw args;
   if (!(args.snd.fst instanceof lisp.Env)) throw args;
@@ -187,30 +193,30 @@ function proc_eval<T>(
 }
 
 function proc_apply<T>(
-  args: lisp.Lisp<T>,
+  args: lisp.Object<T>,
   ctx: lisp.Env<T>,
   rest: lisp.Rest<T>,
-): lisp.Lisp<T> {
+): lisp.Object<T> {
   if (!(args instanceof lisp.Pair)) throw args;
   if (!args.fst.canApply) throw args;
   return args.fst.apply(args.snd, ctx, rest);
 }
 
 function proc_list<T>(
-  args: lisp.Lisp<T>,
+  args: lisp.Object<T>,
   _ctx: lisp.Env<T>,
   rest: lisp.Rest<T>,
-): lisp.Lisp<T> {
+): lisp.Object<T> {
   // Should we even bother to check this?
   if (!(args.isList)) throw args;
   return rest(args);
 }
 
 function proc_list_star<T>(
-  args: lisp.Lisp<T>,
+  args: lisp.Object<T>,
   _ctx: lisp.Env<T>,
   rest: lisp.Rest<T>,
-): lisp.Lisp<T> {
+): lisp.Object<T> {
   let buffer = [];
   while (args instanceof lisp.Pair) {
     buffer.push(args.fst);
@@ -228,10 +234,10 @@ function proc_list_star<T>(
 }
 
 function proc_pair<T>(
-  args: lisp.Lisp<T>,
+  args: lisp.Object<T>,
   _ctx: lisp.Env<T>,
   rest: lisp.Rest<T>,
-): lisp.Lisp<T> {
+): lisp.Object<T> {
   if (!(args instanceof lisp.Pair)) throw args;
   if (!(args.snd instanceof lisp.Pair)) throw args;
   if (!(args.snd.snd instanceof lisp.Nil)) throw args;
@@ -239,10 +245,10 @@ function proc_pair<T>(
 }
 
 function proc_fst<T>(
-  args: lisp.Lisp<T>,
+  args: lisp.Object<T>,
   _ctx: lisp.Env<T>,
   rest: lisp.Rest<T>,
-): lisp.Lisp<T> {
+): lisp.Object<T> {
   if (!(args instanceof lisp.Pair)) throw args;
   if (!(args.fst instanceof lisp.Pair)) throw args;
   if (!(args.snd instanceof lisp.Nil)) throw args;
@@ -250,21 +256,46 @@ function proc_fst<T>(
 }
 
 function proc_snd<T>(
-  args: lisp.Lisp<T>,
+  args: lisp.Object<T>,
   _ctx: lisp.Env<T>,
   rest: lisp.Rest<T>,
-): lisp.Lisp<T> {
+): lisp.Object<T> {
   if (!(args instanceof lisp.Pair)) throw args;
   if (!(args.fst instanceof lisp.Pair)) throw args;
   if (!(args.snd instanceof lisp.Nil)) throw args;
   return rest(args.fst.snd);
 }
 
-function proc_add<T>(
-  args: lisp.Lisp<T>,
+function proc_length<T>(
+  args: lisp.Object<T>,
   _ctx: lisp.Env<T>,
   rest: lisp.Rest<T>,
-): lisp.Lisp<T> {
+): lisp.Object<T> {
+  if (!(args instanceof lisp.Pair)) throw args;
+  if (!(args.fst instanceof lisp.Pair)) throw args;
+  if (!(args.fst.isList)) throw args;
+  if (!(args.snd instanceof lisp.Nil)) throw args;
+  return rest(new lisp.Num(args.fst.length));
+}
+
+function proc_append<T>(
+  args: lisp.Object<T>,
+  _ctx: lisp.Env<T>,
+  rest: lisp.Rest<T>,
+): lisp.Object<T> {
+  if (!args.isList) throw args;
+  let state = lisp.nil();
+  for (const item of reverse(args.toArray())) {
+    state = item.append(state);
+  }
+  return rest(state);
+}
+
+function proc_add<T>(
+  args: lisp.Object<T>,
+  _ctx: lisp.Env<T>,
+  rest: lisp.Rest<T>,
+): lisp.Object<T> {
   let state = 0;
   while (args instanceof lisp.Pair) {
     if (!(args.fst instanceof lisp.Num)) throw arguments[0];
@@ -277,10 +308,10 @@ function proc_add<T>(
 }
 
 function proc_mul<T>(
-  args: lisp.Lisp<T>,
+  args: lisp.Object<T>,
   _ctx: lisp.Env<T>,
   rest: lisp.Rest<T>,
-): lisp.Lisp<T> {
+): lisp.Object<T> {
   let state = 1;
   while (args instanceof lisp.Pair) {
     if (!(args.fst instanceof lisp.Num)) throw arguments[0];
@@ -292,11 +323,51 @@ function proc_mul<T>(
   return rest(result);
 }
 
-function proc_pr<T>(
-  args: lisp.Lisp<T>,
+function proc_neg<T>(
+  args: lisp.Object<T>,
   _ctx: lisp.Env<T>,
   rest: lisp.Rest<T>,
-): lisp.Lisp<T> {
+): lisp.Object<T> {
+  let state = undefined;
+  while (args instanceof lisp.Pair) {
+    if (!(args.fst instanceof lisp.Num)) throw arguments[0];
+    if (state === undefined) {
+      state = args.fst.value;
+    } else {
+      state -= args.fst.value;
+    }
+    args = args.snd;
+  }
+  if (!(args instanceof lisp.Nil) || state === undefined) throw arguments[0];
+  const result = new lisp.Num(state);
+  return rest(result);
+}
+
+function proc_inv<T>(
+  args: lisp.Object<T>,
+  _ctx: lisp.Env<T>,
+  rest: lisp.Rest<T>,
+): lisp.Object<T> {
+  let state = undefined;
+  while (args instanceof lisp.Pair) {
+    if (!(args.fst instanceof lisp.Num)) throw arguments[0];
+    if (state === undefined) {
+      state = args.fst.value;
+    } else {
+      state /= args.fst.value;
+    }
+    args = args.snd;
+  }
+  if (!(args instanceof lisp.Nil) || state === undefined) throw arguments[0];
+  const result = new lisp.Num(state);
+  return rest(result);
+}
+
+function proc_print<T>(
+  args: lisp.Object<T>,
+  _ctx: lisp.Env<T>,
+  rest: lisp.Rest<T>,
+): lisp.Object<T> {
   let buffer = [];
   while (args instanceof lisp.Pair) {
     buffer.push(`${args.fst}`);
@@ -308,34 +379,47 @@ function proc_pr<T>(
   return rest(lisp.nil());
 }
 
-function proc_make_env<T>(
-  args: lisp.Lisp<T>,
+function proc_empty_env<T>(
+  args: lisp.Object<T>,
   _ctx: lisp.Env<T>,
   rest: lisp.Rest<T>,
-): lisp.Lisp<T> {
+): lisp.Object<T> {
   if (!(args instanceof lisp.Nil)) throw args;
   return rest(new lisp.Env());
 }
 
-function proc_make_initial_env<T>(
-  args: lisp.Lisp<T>,
+function proc_initial_env<T>(
+  args: lisp.Object<T>,
   _ctx: lisp.Env<T>,
   rest: lisp.Rest<T>,
-): lisp.Lisp<T> {
+): lisp.Object<T> {
   if (!(args instanceof lisp.Nil)) throw args;
   return rest(initial());
+}
+
+function proc_assert<T>(
+  args: lisp.Object<T>,
+  _ctx: lisp.Env<T>,
+  rest: lisp.Rest<T>,
+): lisp.Object<T> {
+  while (args instanceof lisp.Pair) {
+    if (!(args.fst instanceof lisp.Bool)) throw arguments[0];
+    if (!(args.fst.value)) throw arguments[0];
+    args = args.snd;
+  }
+  return rest(lisp.nil());
 }
 
 export default function initial<T>(): lisp.Env<T> {
   let env = new lisp.Env();
 
-  function defvau(name: string, body: lisp.Fproc<T>): void {
+  function macro(name: string, body: lisp.Fproc<T>): void {
     const value = new lisp.Proc(name, body);
     env.define(name, value);
   }
 
-  function defwrap(name: string, body: lisp.Fproc<T>): void {
-    const value = new lisp.Wrap(new lisp.Proc(name, body));
+  function fn(name: string, body: lisp.Fproc<T>): void {
+    const value = new lisp.Fn(new lisp.Proc(name, body));
     env.define(name, value);
   }
 
@@ -347,99 +431,100 @@ export default function initial<T>(): lisp.Env<T> {
   const proc_is_pair = mk_type((x) => x instanceof lisp.Pair);
   const proc_is_list = mk_type((x) => x.isList);
   const proc_is_env = mk_type((x) => x instanceof lisp.Env);
-  const proc_is_op = mk_type((x) => {
-    return x instanceof lisp.Vau || x instanceof lisp.Proc;
+  const proc_is_macro = mk_type((x) => {
+    return x instanceof lisp.Macro || x instanceof lisp.Proc;
   });
-  const proc_is_app = mk_type((x) => x instanceof lisp.Wrap);
+  const proc_is_fn = mk_type((x) => x instanceof lisp.Fn);
   const proc_is_proc = mk_type((x) => {
     return (
-      x instanceof lisp.Vau ||
-      x instanceof lisp.Wrap ||
+      x instanceof lisp.Macro ||
+      x instanceof lisp.Fn ||
       x instanceof lisp.Proc
     );
   });
 
   // Pairs and Lists
-  defwrap("list?", proc_is_list);
-  defwrap("nil?", proc_is_nil);
-  defwrap("pair?", proc_is_pair);
-  defwrap("list", proc_list);
-  defwrap("list*", proc_list_star);
-  defwrap("pair", proc_pair);
-  defwrap("fst", proc_fst);
-  defwrap("snd", proc_snd);
-  //defwrap("len", proc_len);
-  //defwrap("append", proc_append);
-  //defwrap("map", proc_map);
-  //defwrap("filter", proc_filter);
-  //defwrap("reduce", proc_reduce);
+  fn("list?", proc_is_list);
+  fn("nil?", proc_is_nil);
+  fn("pair?", proc_is_pair);
+  fn("list", proc_list);
+  fn("list*", proc_list_star);
+  fn("pair", proc_pair);
+  fn("fst", proc_fst);
+  fn("snd", proc_snd);
+  fn("length", proc_length);
+  fn("append", proc_append);
+  //fn("map", proc_map);
+  //fn("filter", proc_filter);
+  //fn("reduce", proc_reduce);
 
   // Procedures
-  defwrap("proc?", proc_is_proc);
-  defwrap("op?", proc_is_op);
-  defwrap("app?", proc_is_app);
-  defvau("vau", proc_vau);
-  defwrap("wrap", proc_wrap);
-  defwrap("unwrap", proc_unwrap);
-  defwrap("apply", proc_apply);
-  //defvau("lambda", proc_lambda);
+  macro("macro", proc_macro);
+  //macro("fn", proc_fn);
+  fn("proc?", proc_is_proc);
+  fn("macro?", proc_is_macro);
+  fn("fn?", proc_is_fn);
+  fn("wrap", proc_wrap);
+  fn("unwrap", proc_unwrap);
+  fn("apply", proc_apply);
 
-  // Environments
-  defwrap("env?", proc_is_env);
-  defwrap("make-env", proc_make_env);
-  defwrap("initial-env", proc_make_initial_env);
-  defvau("eval", proc_eval);
-  //defvau("def", proc_def);
-  //defvau("let", proc_let);
-  //defvau("let*", proc_let_star);
+  // Env
+  fn("env?", proc_is_env);
+  fn("empty-env", proc_empty_env);
+  fn("initial-env", proc_initial_env);
+  macro("eval", proc_eval);
+  //macro("def", proc_def);
+  //macro("let", proc_let);
+  //macro("let*", proc_let_star);
 
-  // Booleans
-  defwrap("bool?", proc_is_bool);
-  defwrap("and", proc_and);
-  defwrap("or", proc_or);
-  defwrap("not", proc_not);
+  // Bools
+  fn("boolean?", proc_is_bool);
+  fn("and", proc_and);
+  fn("or", proc_or);
+  fn("not", proc_not);
 
   // Numbers
-  defwrap("num?", proc_is_num);
-  defwrap("+", proc_add);
-  defwrap("*", proc_mul);
-  //defwrap("-", proc_neg);
-  //defwrap("/", proc_inv);
-  //defwrap("min", proc_min);
-  //defwrap("max", proc_max);
-  //defwrap("abs", proc_abs);
-  //defwrap(">", proc_gt);
-  //defwrap(">=", proc_gteq);
-  //defwrap("<", proc_lt);
-  //defwrap("<=", proc_lteq);
-  //defwrap("exp", proc_exp);
-  //defwrap("log", proc_log);
-  //defwrap("sin", proc_sin);
-  //defwrap("cos", proc_cos);
-  //defwrap("tan", proc_tan);
-  //defwrap("sinh", proc_sinh);
-  //defwrap("cosh", proc_cosh);
-  //defwrap("tanh", proc_tanh);
+  fn("number?", proc_is_num);
+  fn("+", proc_add);
+  fn("*", proc_mul);
+  fn("-", proc_neg);
+  fn("/", proc_inv);
+  //fn("min", proc_min);
+  //fn("max", proc_max);
+  //fn("abs", proc_abs);
+  //fn(">", proc_gt);
+  //fn(">=", proc_gteq);
+  //fn("<", proc_lt);
+  //fn("<=", proc_lteq);
+  //fn("exp", proc_exp);
+  //fn("log", proc_log);
+  //fn("sin", proc_sin);
+  //fn("cos", proc_cos);
+  //fn("tan", proc_tan);
+  //fn("sinh", proc_sinh);
+  //fn("cosh", proc_cosh);
+  //fn("tanh", proc_tanh);
 
   // Symbols
-  defwrap("sym?", proc_is_sym);
-  //defwrap("string->symbol", proc_str2sym);
+  fn("symbol?", proc_is_sym);
+  //fn("string->symbol", proc_str2sym);
 
   // Strings
-  defwrap("str?", proc_is_str);
-  //defwrap("symbol->string", proc_sym2str);
+  fn("string?", proc_is_str);
+  //fn("symbol->string", proc_sym2str);
 
   // Control
-  //defvau("cond", proc_cond);
-  defvau("if", proc_if);
-  defwrap("reset", proc_reset);
-  defwrap("shift", proc_shift);
+  //macro("case", proc_case);
+  macro("if", proc_if);
+  fn("reset", proc_reset);
+  fn("shift", proc_shift);
 
   // Equivalence
-  defwrap("=", proc_is_equal);
+  fn("=", proc_is_equal);
 
   // Input/Output
-  defwrap("pr", proc_pr);
+  fn("print!", proc_print);
+  fn("assert!", proc_assert);
 
   return env;
 }
