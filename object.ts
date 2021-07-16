@@ -256,6 +256,10 @@ export class Str<T> extends Object<T> {
     this.value = value;
   }
 
+  get len(): number {
+    return this.value.length;
+  }
+
   toString(): string {
     return `"${this.value}"`;
   }

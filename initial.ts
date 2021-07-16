@@ -288,8 +288,12 @@ function proc_len<T>(
   rest: lisp.Rest<T>,
 ): lisp.Object<T> {
   if (!(args instanceof lisp.Pair)) throw args;
-  if (!(args.fst instanceof lisp.Pair)) throw args;
-  if (!(args.fst.isList)) throw args;
+  if (
+    !args.fst.isList &&
+    !(args.fst instanceof lisp.Str)
+  ) {
+    throw args;
+  }
   if (!(args.snd instanceof lisp.Nil)) throw args;
   return rest(new lisp.Num(args.fst.len));
 }
@@ -523,11 +527,11 @@ export default function initial<T>(): lisp.Env<T> {
 
   // Symbols
   fn("sym?", proc_is_sym);
-  //fn("string->symbol", proc_str2sym);
+  //fn("sym->str", proc_sym2str);
 
   // Strings
   fn("str?", proc_is_str);
-  //fn("symbol->string", proc_sym2str);
+  //fn("str->sym", proc_str2sym);
 
   // Control
   //macro("case", proc_case);
