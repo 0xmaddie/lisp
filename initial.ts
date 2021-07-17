@@ -208,6 +208,38 @@ function proc_eval<T>(
   return args.fst.evaluate(args.snd.fst, rest);
 }
 
+function proc_def<T>(
+  args: lisp.Object<T>,
+  ctx: lisp.Env<T>,
+  rest: lisp.Rest<T>,
+): lisp.Object<T> {
+  if (!(args instanceof lisp.Pair)) throw args;
+  if (!(args.fst instanceof lisp.Sym)) throw args;
+  if (!(args.snd instanceof lisp.Pair)) throw args;
+  if (!(args.snd.snd instanceof lisp.Nil)) throw args;
+  return args.snd.fst.evaluate(ctx, (rhs) => {
+    args.fst.bind(rhs, ctx);
+    return rest(lisp.nil());
+  });
+}
+
+function proc_let_star<T>(
+  args: lisp.Object<T>,
+  ctx: lisp.Env<T>,
+  rest: lisp.Rest<T>,
+): lisp.Object<T> {
+  if (!(args instanceof lisp.Pair)) throw args;
+  if (!(args.fst instanceof lisp.Pair)) throw args;
+  let bindings = args.fst.toArray();
+  for (const binding of bindings) {
+    if (!(binding instanceof lisp.Pair)) throw args;
+    const lhs = binding.fst;
+    const rhs = binding.snd.evaluate(ctx, (x) => x);
+    lhs.bind(rhs, ctx);
+  }
+  return args.snd.evaluate(ctx, rest);
+}
+
 function proc_apply<T>(
   args: lisp.Object<T>,
   ctx: lisp.Env<T>,
@@ -430,6 +462,14 @@ function proc_assert<T>(
   return rest(lisp.nil());
 }
 
+function proc_do<T>(
+  args: lisp.Object<T>,
+  ctx: lisp.Env<T>,
+  rest: lisp.Rest<T>,
+): lisp.Object<T> {
+  return args.execute(ctx, rest);
+}
+
 export default function initial<T>(): lisp.Env<T> {
   let env = new lisp.Env();
 
@@ -489,15 +529,14 @@ export default function initial<T>(): lisp.Env<T> {
   fn("apply", proc_apply);
 
   // Env
+  macro("eval", proc_eval);
+  macro("def", proc_def);
+  macro("let", proc_let_star);
   fn("env?", proc_is_env);
   fn("empty-env", proc_empty_env);
   fn("initial-env", proc_initial_env);
-  macro("eval", proc_eval);
-  //macro("def", proc_def);
-  //macro("let", proc_let);
-  //macro("let*", proc_let_star);
 
-  // Bools
+  // Booleans
   fn("bool?", proc_is_bool);
   fn("and", proc_and);
   fn("or", proc_or);
@@ -536,6 +575,7 @@ export default function initial<T>(): lisp.Env<T> {
   // Control
   //macro("case", proc_case);
   macro("if", proc_if);
+  macro("do", proc_do);
   fn("reset", proc_reset);
   fn("shift", proc_shift);
 

@@ -2,16 +2,31 @@ A Lisp dialect based on John Shutt's vau calculus.
 
 ---
 
-What else is needed for an initial demonstration?
+- [x] First class macros
 
-- Conditions and restarts would be good for a solid narrative on
-  testing and debugging.
-  
-- Complete the initial environment, maybe by comparing to R*RS, R^-1RK
-  etc.
-  
-- Language server, and Emacs integration? This is nice to have but is
-  not very high priority.
+These are actually fexprs, but I think I'm going to use the word
+"macros" because people actually know what macros are, while no one
+knows what a fexpr is. Macro is close enough in meaning to tweak,
+which seems better than starting from scratch with fexpr.
+
+- [x] Delimited continuations with shift/reset
+
+This is important for implementing other languages; delimited
+continuations are like a "top type for effects"
+
+- [ ] Conditions and restarts
+
+I think I can implement this with exceptions. Basically whenever you
+throw an exception, attach some continuations to "restart" and try
+again with a more sensible value.
+
+- [ ] Emacs mode
+
+This would be nice to have, idk how important it is right now.
+
+- [ ] R5RS, R6RS, R(-1)RK
+
+Compatibility with Scheme would be nice but is not important.
 
 ---
 
