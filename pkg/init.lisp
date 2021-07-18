@@ -11,3 +11,14 @@
      (print! "true 2")
      (print! "true 3"))
   (print! "false"))
+
+(case (= 3 2) (print! "true!")
+      (= 3 3) (print! "false..."))
+
+(def quote (macro (x) _ x))
+
+(print! (->str macro))
+(print! (->str (quote foo)))
+(print! (sym? (quote foo)))
+
+(print! (map (fn (x) (+ x 1)) (list 1 2 3 4 5)))

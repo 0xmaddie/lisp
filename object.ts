@@ -15,11 +15,47 @@ export abstract class Object<T> {
     return false;
   }
 
+  get fst(): Object<T> {
+    throw `${this} is not a pair`;
+  }
+
+  get snd(): Object<T> {
+    throw `${this} is not a pair`;
+  }
+
   get len(): number {
     throw `${this} is not a list`;
   }
 
+  get asBool(): boolean {
+    throw `${this} is not a bool`;
+  }
+
+  get asNum(): number {
+    throw `${this} is not a num`;
+  }
+
+  get asStr(): string {
+    throw `${this} is not a str`;
+  }
+
+  get asSym(): string {
+    throw `${this} is not a sym`;
+  }
+
+  get isEmpty(): boolean {
+    throw `${this} is not a list`;
+  }
+
+  get isNotEmpty(): boolean {
+    throw `${this} is not a list`;
+  }
+
   append(rhs: Object<T>): Object<T> {
+    throw `${this} is not a list`;
+  }
+
+  map(fn: Object<T>, ctx: Env<T>): Object<T> {
     throw `${this} is not a list`;
   }
 
@@ -69,8 +105,20 @@ export class Nil<T> extends Object<T> {
     return 0;
   }
 
+  get isEmpty(): boolean {
+    return true;
+  }
+
+  get isNotEmpty(): boolean {
+    return false;
+  }
+
   append(rhs: Object<T>): Object<T> {
     return rhs;
+  }
+
+  map(fn: Object<T>, ctx: Env<T>): Object<T> {
+    return this;
   }
 
   evaluateAll(_ctx: Env<T>, rest: Rest<T>): Object<T> {
@@ -101,13 +149,13 @@ export class Nil<T> extends Object<T> {
 }
 
 export class Pair<T> extends Object<T> {
-  fst: Object<T>;
-  snd: Object<T>;
+  _fst: Object<T>;
+  _snd: Object<T>;
 
   constructor(fst: Object<T>, snd: Object<T>) {
     super();
-    this.fst = fst;
-    this.snd = snd;
+    this._fst = fst;
+    this._snd = snd;
   }
 
   get isList(): boolean {
@@ -118,13 +166,35 @@ export class Pair<T> extends Object<T> {
     return this.fst.canBind && this.snd.canBind;
   }
 
+  get fst(): Object<T> {
+    return this._fst;
+  }
+
+  get snd(): Object<T> {
+    return this._snd;
+  }
+
   get len(): number {
     return 1 + this.snd.len;
+  }
+
+  get isEmpty(): boolean {
+    return false;
+  }
+
+  get isNotEmpty(): boolean {
+    return true;
   }
 
   append(rhs: Object<T>): Object<T> {
     const snd = this.snd.append(rhs);
     return new Pair(this.fst, snd);
+  }
+
+  map(fn: Object<T>, ctx: Env<T>): Object<T> {
+    const fst = fn.apply(list([this.fst]), ctx, (x) => x);
+    const snd = this.snd.map(fn, ctx);
+    return new Pair(fst, snd);
   }
 
   evaluate(ctx: Env<T>, rest: Rest<T>): Object<T> {
@@ -211,6 +281,10 @@ export class Bool<T> extends Object<T> {
     this.value = value;
   }
 
+  get asBool(): boolean {
+    return this.value;
+  }
+
   toString(): string {
     if (this.value) {
       return "#t";
@@ -234,6 +308,10 @@ export class Num<T> extends Object<T> {
     this.value = value;
   }
 
+  get asNum(): number {
+    return this.value;
+  }
+
   toString(): string {
     return `${this.value}`;
   }
@@ -254,6 +332,10 @@ export class Str<T> extends Object<T> {
   constructor(value: string) {
     super();
     this.value = value;
+  }
+
+  get asStr(): string {
+    return this.value;
   }
 
   get len(): number {
@@ -284,13 +366,19 @@ export class Sym<T> extends Object<T> {
     return true;
   }
 
+  get asSym(): string {
+    return this.name;
+  }
+
   evaluate(ctx: Env<T>, rest: Rest<T>): Object<T> {
     const binding = ctx.lookup(this);
     return rest(binding);
   }
 
   bind(rhs: Object<T>, ctx: Env<T>): void {
-    ctx.define(this, rhs);
+    if (this.name !== "_") {
+      ctx.define(this, rhs);
+    }
   }
 
   toString(): string {
@@ -305,11 +393,11 @@ export class Sym<T> extends Object<T> {
   }
 }
 
-function nameof<T>(key: string | Sym<T>): string {
+function nameof<T>(key: string | Object<T>): string {
   if (typeof (key) === "string") {
     return key;
   }
-  return key.name;
+  return key.asSym;
 }
 
 export class Env<T> extends Object<T> {
@@ -327,17 +415,10 @@ export class Env<T> extends Object<T> {
   }
 
   apply(args: Object<T>, _ctx: Env<T>, rest: Rest<T>): Object<T> {
-    if (
-      args instanceof Pair &&
-      args.fst instanceof Sym &&
-      args.snd instanceof Nil
-    ) {
-      return rest(this.lookup(args.fst));
-    }
-    throw `Env#apply: ${args}`;
+    return rest(this.lookup(args.fst));
   }
 
-  lookup(key: string | Sym<T>): Object<T> {
+  lookup(key: string | Object<T>): Object<T> {
     const name = nameof(key);
     if (this.frame.has(name)) {
       return this.frame.get(name)!;
@@ -348,12 +429,12 @@ export class Env<T> extends Object<T> {
     throw `${key} is undefined`;
   }
 
-  define(key: string | Sym<T>, value: Object<T>): void {
+  define(key: string | Object<T>, value: Object<T>): void {
     const name = nameof(key);
     this.frame.set(name, value);
   }
 
-  remove(key: string | Sym<T>): void {
+  remove(key: string | Object<T>): void {
     const name = nameof(key);
     this.frame.delete(name);
   }
@@ -367,13 +448,13 @@ export class Macro<T> extends Object<T> {
   head: Object<T>;
   body: Object<T>;
   lexical: Env<T>;
-  dynamic: Sym<T>;
+  dynamic: Object<T>;
 
   constructor(
     head: Object<T>,
     body: Object<T>,
     lexical: Env<T>,
-    dynamic: Sym<T>,
+    dynamic: Object<T>,
   ) {
     super();
     this.head = head;
@@ -491,6 +572,10 @@ export function t<T>(): Object<T> {
 
 export function f<T>(): Object<T> {
   return new Bool(false);
+}
+
+export function ignore<T>(): Object<T> {
+  return new Sym("_");
 }
 
 export function list<T>(

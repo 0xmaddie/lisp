@@ -78,6 +78,27 @@ Deno.test({
   name: "shift/reset sanity",
   fn(): void {
     let ctx = lisp.initial();
+    // https://en.wikipedia.org/wiki/Delimited_continuation
+    //
+    // One proposal[5] offers two control operators: shift and
+    // reset. The reset operator sets the limit for the continuation
+    // while the shift operator captures or reifies the current
+    // continuation up to the innermost enclosing reset. For example,
+    // consider the following snippet in Scheme:
+    //
+    //     (* 2 (reset (+ 1 (shift k (k 5)))))
+    //
+    // The reset delimits the continuation that shift captures (named
+    // by k in this example). When this snippet is executed, the use
+    // of shift will bind k to the continuation (+ 1 []) where []
+    // represents the part of the computation that is to be filled
+    // with a value. This continuation directly corresponds to the
+    // code that surrounds the shift up to the reset. Because the body
+    // of shift (i.e., (k 5)) immediately invokes the continuation,
+    // this code is equivalent to the following:
+    //
+    // (* 2 (+ 1 5))
+    //
     const code = `(* 2 (reset (+ 1 (shift (wrap (macro (k) e (k 5)))))))`;
     const body = lisp.read(code);
     assert(body.length === 1);

@@ -20,7 +20,7 @@ I think I can implement this with exceptions. Basically whenever you
 throw an exception, attach some continuations to "restart" and try
 again with a more sensible value.
 
-- [ ] Emacs mode
+- [ ] Emacs mode/language server
 
 This would be nice to have, idk how important it is right now.
 
