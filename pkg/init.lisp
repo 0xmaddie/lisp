@@ -12,6 +12,11 @@
      (print! "true 3"))
   (print! "false"))
 
+(let (foo (+ 1 1)
+      bar (+ 2 2)
+      res (+ foo bar))
+  (print! "res = " res))
+
 (case (= 3 2) (print! "true!")
       (= 3 3) (print! "false..."))
 

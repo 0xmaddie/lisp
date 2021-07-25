@@ -209,11 +209,10 @@ function proc_let_star<T>(
   let local = new lisp.Env(ctx);
   let bindings = args.fst;
   while (bindings.isNotEmpty) {
-    const pair = bindings.fst;
-    const lhs = pair.fst;
-    const rhs = pair.snd.evaluate(local, (x) => x);
+    const lhs = bindings.fst;
+    const rhs = bindings.snd.fst.evaluate(local, (x) => x);
     lhs.bind(rhs, local);
-    bindings = bindings.snd;
+    bindings = bindings.snd.snd;
   }
   return args.snd.execute(local, rest);
 }
