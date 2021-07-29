@@ -430,16 +430,6 @@ function proc_to_str<T>(
 export default function initial<T>(): lisp.Env<T> {
   let env = new lisp.Env();
 
-  function macro(name: string, body: lisp.Fproc<T>): void {
-    const value = new lisp.Proc(name, body);
-    env.define(name, value);
-  }
-
-  function fn(name: string, body: lisp.Fproc<T>): void {
-    const value = new lisp.Fn(new lisp.Proc(name, body));
-    env.define(name, value);
-  }
-
   const proc_is_bool = mk_type((x) => x instanceof lisp.Bool);
   const proc_is_sym = mk_type((x) => x instanceof lisp.Sym);
   const proc_is_num = mk_type((x) => x instanceof lisp.Num);
@@ -461,86 +451,86 @@ export default function initial<T>(): lisp.Env<T> {
   });
 
   // Pairs and Lists
-  fn("list?", proc_is_list);
-  fn("nil?", proc_is_nil);
-  fn("pair?", proc_is_pair);
-  fn("list", proc_list);
-  fn("list*", proc_list_star);
-  fn("pair", proc_pair);
-  fn("fst", proc_fst);
-  fn("snd", proc_snd);
-  fn("len", proc_len);
-  fn("append", proc_append);
-  fn("map", proc_map);
-  //fn("filter", proc_filter);
-  //fn("reduce", proc_reduce);
+  env.defn("list?", proc_is_list);
+  env.defn("nil?", proc_is_nil);
+  env.defn("pair?", proc_is_pair);
+  env.defn("list", proc_list);
+  env.defn("list*", proc_list_star);
+  env.defn("pair", proc_pair);
+  env.defn("fst", proc_fst);
+  env.defn("snd", proc_snd);
+  env.defn("len", proc_len);
+  env.defn("append", proc_append);
+  env.defn("map", proc_map);
+  //env.defn("filter", proc_filter);
+  //env.defn("reduce", proc_reduce);
 
   // Procedures
-  macro("macro", proc_macro);
-  macro("fn", proc_fn);
-  fn("proc?", proc_is_proc);
-  fn("macro?", proc_is_macro);
-  fn("fn?", proc_is_fn);
-  fn("wrap", proc_wrap);
-  fn("unwrap", proc_unwrap);
-  fn("apply", proc_apply);
+  env.defmacro("macro", proc_macro);
+  env.defmacro("fn", proc_fn);
+  env.defn("proc?", proc_is_proc);
+  env.defn("macro?", proc_is_macro);
+  env.defn("fn?", proc_is_fn);
+  env.defn("wrap", proc_wrap);
+  env.defn("unwrap", proc_unwrap);
+  env.defn("apply", proc_apply);
 
   // Env
-  macro("eval", proc_eval);
-  macro("def", proc_def);
-  macro("let", proc_let_star);
-  fn("env?", proc_is_env);
-  fn("empty-env", proc_empty_env);
-  fn("initial-env", proc_initial_env);
+  env.defmacro("eval", proc_eval);
+  env.defmacro("def", proc_def);
+  env.defmacro("let", proc_let_star);
+  env.defn("env?", proc_is_env);
+  env.defn("empty-env", proc_empty_env);
+  env.defn("initial-env", proc_initial_env);
 
   // Booleans
-  fn("bool?", proc_is_bool);
-  fn("and", proc_and);
-  fn("or", proc_or);
-  fn("not", proc_not);
+  env.defn("bool?", proc_is_bool);
+  env.defn("and", proc_and);
+  env.defn("or", proc_or);
+  env.defn("not", proc_not);
 
   // Numbers
-  fn("num?", proc_is_num);
-  fn("+", proc_add);
-  fn("*", proc_mul);
-  fn("-", proc_neg);
-  fn("/", proc_inv);
-  //fn("min", proc_min);
-  //fn("max", proc_max);
-  //fn("abs", proc_abs);
-  //fn(">", proc_gt);
-  //fn(">=", proc_gteq);
-  //fn("<", proc_lt);
-  //fn("<=", proc_lteq);
-  //fn("exp", proc_exp);
-  //fn("log", proc_log);
-  //fn("sin", proc_sin);
-  //fn("cos", proc_cos);
-  //fn("tan", proc_tan);
-  //fn("sinh", proc_sinh);
-  //fn("cosh", proc_cosh);
-  //fn("tanh", proc_tanh);
+  env.defn("num?", proc_is_num);
+  env.defn("+", proc_add);
+  env.defn("*", proc_mul);
+  env.defn("-", proc_neg);
+  env.defn("/", proc_inv);
+  //env.defn("min", proc_min);
+  //env.defn("max", proc_max);
+  //env.defn("abs", proc_abs);
+  //env.defn(">", proc_gt);
+  //env.defn(">=", proc_gteq);
+  //env.defn("<", proc_lt);
+  //env.defn("<=", proc_lteq);
+  //env.defn("exp", proc_exp);
+  //env.defn("log", proc_log);
+  //env.defn("sin", proc_sin);
+  //env.defn("cos", proc_cos);
+  //env.defn("tan", proc_tan);
+  //env.defn("sinh", proc_sinh);
+  //env.defn("cosh", proc_cosh);
+  //env.defn("tanh", proc_tanh);
 
   // Symbols
-  fn("sym?", proc_is_sym);
+  env.defn("sym?", proc_is_sym);
 
   // Strings
-  fn("str?", proc_is_str);
+  env.defn("str?", proc_is_str);
 
   // Control
-  macro("case", proc_case);
-  macro("if", proc_if);
-  macro("do", proc_do);
-  fn("reset", proc_reset);
-  fn("shift", proc_shift);
+  env.defmacro("case", proc_case);
+  env.defmacro("if", proc_if);
+  env.defmacro("do", proc_do);
+  env.defn("reset", proc_reset);
+  env.defn("shift", proc_shift);
 
   // Equivalence
-  fn("=", proc_is_equal);
+  env.defn("=", proc_is_equal);
 
   // Input/Output
-  fn("print!", proc_print);
-  fn("assert!", proc_assert);
-  fn("->str", proc_to_str);
+  env.defn("print!", proc_print);
+  env.defn("assert!", proc_assert);
+  env.defn("->str", proc_to_str);
 
   return env;
 }

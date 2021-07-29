@@ -431,12 +431,26 @@ export class Env<T> extends Object<T> {
 
   define(key: string | Object<T>, value: Object<T>): void {
     const name = nameof(key);
+    if (this.frame.has(name)) {
+      const value = this.frame.get(name);
+      throw `${key} is already defined as ${value}`;
+    }
     this.frame.set(name, value);
   }
 
   remove(key: string | Object<T>): void {
     const name = nameof(key);
     this.frame.delete(name);
+  }
+
+  defmacro(name: string, body: Fproc<T>): void {
+    const value = new Proc(name, body);
+    this.define(name, value);
+  }
+
+  defn(name: string, body: Fproc<T>): void {
+    const value = new Fn(new Proc(name, body));
+    this.define(name, value);
   }
 
   toString(): string {
