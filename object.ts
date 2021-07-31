@@ -43,6 +43,10 @@ export abstract class Object<T> {
     throw `${this} is not a sym`;
   }
 
+  get asEmbed(): T {
+    throw `${this} is not an embedded value`;
+  }
+
   get isEmpty(): boolean {
     throw `${this} is not a list`;
   }
@@ -564,6 +568,10 @@ export class Embed<T> extends Object<T> {
   constructor(body: T) {
     super();
     this.body = body;
+  }
+
+  get asEmbed(): T {
+    return this.body;
   }
 
   toString(): string {
