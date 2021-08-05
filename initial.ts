@@ -57,7 +57,7 @@ function proc_if<T>(
   });
 }
 
-async function proc_case<T>(
+async function proc_cond<T>(
   args: lisp.Object<T>,
   ctx: lisp.Env<T>,
   rest: lisp.Rest<T>,
@@ -211,10 +211,12 @@ async function proc_let_star<T>(
   let local = new lisp.Env(ctx);
   let bindings = args.fst;
   while (bindings.isNotEmpty) {
-    const lhs = bindings.fst;
-    const rhs = await bindings.snd.fst.evaluate(local, (x) => Promise.resolve(x));
+    const lhs = bindings.fst.fst;
+    const rhs = await bindings.fst.snd.fst.evaluate(local, (x) => Promise.resolve(x));
+    //const lhs = bindings.fst;
+    //const rhs = await bindings.snd.fst.evaluate(local, (x) => Promise.resolve(x));
     lhs.bind(rhs, local);
-    bindings = bindings.snd.snd;
+    bindings = bindings.snd;
   }
   return args.snd.execute(local, rest);
 }
@@ -520,7 +522,7 @@ export default function initial<T>(): lisp.Env<T> {
   env.defn("str?", proc_is_str);
 
   // Control
-  env.defmacro("case", proc_case);
+  env.defmacro("cond", proc_cond);
   env.defmacro("if", proc_if);
   env.defmacro("do", proc_do);
   env.defn("reset", proc_reset);

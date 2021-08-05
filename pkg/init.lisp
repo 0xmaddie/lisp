@@ -12,13 +12,13 @@
      (print! "true 3"))
   (print! "false"))
 
-(let (foo (+ 1 1)
-      bar (+ 2 2)
-      res (+ foo bar))
+(let ((foo (+ 1 1))
+      (bar (+ 2 2))
+      (res (+ foo bar)))
   (print! "res = " res))
 
-(case (= 3 2) (print! "true!")
-      (= 3 3) (print! "false..."))
+(cond ((= 3 2) (print! "true"))
+      ((= 3 3) (print! "false...")))
 
 (def quote (macro (x) _ x))
 
