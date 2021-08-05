@@ -1,6 +1,6 @@
 import { assert } from "https://deno.land/std@0.97.0/testing/asserts.ts";
 
-export type Rest<T> = (value: Object<T>) => Object<T>;
+export type Rest<T> = (value: Object<T>) => Promise<Object<T>>;
 
 export abstract class Object<T> {
   get isList(): boolean {
@@ -55,27 +55,27 @@ export abstract class Object<T> {
     throw `${this} is not a list`;
   }
 
-  append(rhs: Object<T>): Object<T> {
+  append(_rhs: Object<T>): Object<T> {
     throw `${this} is not a list`;
   }
 
-  map(fn: Object<T>, ctx: Env<T>): Object<T> {
+  map(_fn: Object<T>, _ctx: Env<T>): Promise<Object<T>> {
     throw `${this} is not a list`;
   }
 
-  evaluate(_ctx: Env<T>, rest: Rest<T>): Object<T> {
+  evaluate(_ctx: Env<T>, rest: Rest<T>): Promise<Object<T>> {
     return rest(this);
   }
 
-  evaluateAll(_ctx: Env<T>, _rest: Rest<T>): Object<T> {
+  evaluateAll(_ctx: Env<T>, _rest: Rest<T>): Promise<Object<T>> {
     throw `${this} is not a list`;
   }
 
-  execute(_ctx: Env<T>, _rest: Rest<T>): Object<T> {
+  execute(_ctx: Env<T>, _rest: Rest<T>): Promise<Object<T>> {
     throw `${this} is not a list`;
   }
 
-  apply(_args: Object<T>, _ctx: Env<T>, _rest: Rest<T>): Object<T> {
+  apply(_args: Object<T>, _ctx: Env<T>, _rest: Rest<T>): Promise<Object<T>> {
     throw `${this} is not a procedure`;
   }
 
@@ -121,15 +121,15 @@ export class Nil<T> extends Object<T> {
     return rhs;
   }
 
-  map(fn: Object<T>, ctx: Env<T>): Object<T> {
-    return this;
+  map(_fn: Object<T>, _ctx: Env<T>): Promise<Object<T>> {
+    return Promise.resolve(this);
   }
 
-  evaluateAll(_ctx: Env<T>, rest: Rest<T>): Object<T> {
+  evaluateAll(_ctx: Env<T>, rest: Rest<T>): Promise<Object<T>> {
     return rest(this);
   }
 
-  execute(_ctx: Env<T>, rest: Rest<T>): Object<T> {
+  execute(_ctx: Env<T>, rest: Rest<T>): Promise<Object<T>> {
     return rest(this);
   }
 
@@ -195,19 +195,19 @@ export class Pair<T> extends Object<T> {
     return new Pair(this.fst, snd);
   }
 
-  map(fn: Object<T>, ctx: Env<T>): Object<T> {
-    const fst = fn.apply(list([this.fst]), ctx, (x) => x);
-    const snd = this.snd.map(fn, ctx);
+  async map(fn: Object<T>, ctx: Env<T>): Promise<Object<T>> {
+    const fst = await fn.apply(list([this.fst]), ctx, (x) => Promise.resolve(x));
+    const snd = await this.snd.map(fn, ctx);
     return new Pair(fst, snd);
   }
 
-  evaluate(ctx: Env<T>, rest: Rest<T>): Object<T> {
+  async evaluate(ctx: Env<T>, rest: Rest<T>): Promise<Object<T>> {
     return this.fst.evaluate(ctx, (proc) => {
       return proc.apply(this.snd, ctx, rest);
     });
   }
 
-  evaluateAll(ctx: Env<T>, rest: Rest<T>): Object<T> {
+  async evaluateAll(ctx: Env<T>, rest: Rest<T>): Promise<Object<T>> {
     return this.fst.evaluate(ctx, (fst) => {
       return this.snd.evaluateAll(ctx, (snd) => {
         const value = new Pair(fst, snd);
@@ -216,7 +216,7 @@ export class Pair<T> extends Object<T> {
     });
   }
 
-  execute(ctx: Env<T>, rest: Rest<T>): Object<T> {
+  async execute(ctx: Env<T>, rest: Rest<T>): Promise<Object<T>> {
     return this.fst.evaluate(ctx, (fst) => {
       return this.snd.execute(ctx, (snd) => {
         if (snd instanceof Nil) {
@@ -374,7 +374,7 @@ export class Sym<T> extends Object<T> {
     return this.name;
   }
 
-  evaluate(ctx: Env<T>, rest: Rest<T>): Object<T> {
+  evaluate(ctx: Env<T>, rest: Rest<T>): Promise<Object<T>> {
     const binding = ctx.lookup(this);
     return rest(binding);
   }
@@ -418,7 +418,7 @@ export class Env<T> extends Object<T> {
     return true;
   }
 
-  apply(args: Object<T>, _ctx: Env<T>, rest: Rest<T>): Object<T> {
+  apply(args: Object<T>, _ctx: Env<T>, rest: Rest<T>): Promise<Object<T>> {
     return rest(this.lookup(args.fst));
   }
 
@@ -485,7 +485,7 @@ export class Macro<T> extends Object<T> {
     return true;
   }
 
-  apply(args: Object<T>, ctx: Env<T>, rest: Rest<T>): Object<T> {
+  async apply(args: Object<T>, ctx: Env<T>, rest: Rest<T>): Promise<Object<T>> {
     let local = new Env(this.lexical);
     try {
       this.head.bind(args, local);
@@ -515,7 +515,7 @@ export class Fn<T> extends Object<T> {
     return true;
   }
 
-  apply(args: Object<T>, ctx: Env<T>, rest: Rest<T>): Object<T> {
+  async apply(args: Object<T>, ctx: Env<T>, rest: Rest<T>): Promise<Object<T>> {
     return args.evaluateAll(ctx, (args) => {
       return this.body.apply(args, ctx, rest);
     });
@@ -530,7 +530,7 @@ export type Fproc<T> = (
   args: Object<T>,
   ctx: Env<T>,
   rest: Rest<T>,
-) => Object<T>;
+) => Promise<Object<T>>;
 
 export class Proc<T> extends Object<T> {
   name: string;
@@ -546,7 +546,7 @@ export class Proc<T> extends Object<T> {
     return true;
   }
 
-  apply(args: Object<T>, ctx: Env<T>, rest: Rest<T>): Object<T> {
+  async apply(args: Object<T>, ctx: Env<T>, rest: Rest<T>): Promise<Object<T>> {
     try {
       return this.body(args, ctx, rest);
     } catch (error) {
@@ -612,11 +612,11 @@ export function list<T>(
     state = xs[xs.length - 1];
     start = xs.length - 2;
   } else {
-    state = new Nil();
+    state = new Nil<T>();
     start = xs.length - 1;
   }
   for (let i = start; i >= 0; --i) {
-    state = new Pair(xs[i], state);
+    state = new Pair<T>(xs[i], state);
   }
   return state;
 }

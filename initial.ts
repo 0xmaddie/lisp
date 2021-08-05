@@ -13,7 +13,7 @@ function mk_type<T>(
     args: lisp.Object<T>,
     ctx: lisp.Env<T>,
     rest: lisp.Rest<T>,
-  ): lisp.Object<T> => {
+  ): Promise<lisp.Object<T>> => {
     while (args.isNotEmpty) {
       if (!check(args.fst)) {
         return rest(lisp.f());
@@ -28,7 +28,7 @@ function proc_is_equal<T>(
   args: lisp.Object<T>,
   _ctx: lisp.Env<T>,
   rest: lisp.Rest<T>,
-): lisp.Object<T> {
+): Promise<lisp.Object<T>> {
   let state;
   while (args.isNotEmpty) {
     if (state === undefined) {
@@ -45,7 +45,7 @@ function proc_if<T>(
   args: lisp.Object<T>,
   ctx: lisp.Env<T>,
   rest: lisp.Rest<T>,
-): lisp.Object<T> {
+): Promise<lisp.Object<T>> {
   return args.fst.evaluate(ctx, (flag) => {
     if (flag.asBool) {
       return args.snd.fst.evaluate(ctx, rest);
@@ -57,13 +57,13 @@ function proc_if<T>(
   });
 }
 
-function proc_case<T>(
+async function proc_case<T>(
   args: lisp.Object<T>,
   ctx: lisp.Env<T>,
   rest: lisp.Rest<T>,
-): lisp.Object<T> {
+): Promise<lisp.Object<T>> {
   while (args.isNotEmpty) {
-    const flag = args.fst.evaluate(ctx, (x) => x);
+    const flag = await args.fst.evaluate(ctx, (x) => Promise.resolve(x));
     if (flag.asBool) {
       return args.snd.fst.evaluate(ctx, rest);
     }
@@ -76,7 +76,7 @@ function proc_macro<T>(
   args: lisp.Object<T>,
   ctx: lisp.Env<T>,
   rest: lisp.Rest<T>,
-): lisp.Object<T> {
+): Promise<lisp.Object<T>> {
   const head = args.fst;
   const body = args.snd.snd;
   const lexical = ctx;
@@ -85,14 +85,14 @@ function proc_macro<T>(
   return rest(result);
 }
 
-function proc_fn<T>(
+async function proc_fn<T>(
   args: lisp.Object<T>,
   ctx: lisp.Env<T>,
   rest: lisp.Rest<T>,
-): lisp.Object<T> {
+): Promise<lisp.Object<T>> {
   const head = args.fst;
   const body = args.snd;
-  const dynamic = lisp.ignore();
+  const dynamic = lisp.ignore<T>();
   const lexical = ctx;
   const result = new lisp.Fn(
     new lisp.Macro(head, body, lexical, dynamic),
@@ -104,7 +104,7 @@ function proc_and<T>(
   args: lisp.Object<T>,
   _ctx: lisp.Env<T>,
   rest: lisp.Rest<T>,
-): lisp.Object<T> {
+): Promise<lisp.Object<T>> {
   while (args.isNotEmpty) {
     if (!args.fst.asBool) {
       return rest(args.fst);
@@ -118,7 +118,7 @@ function proc_or<T>(
   args: lisp.Object<T>,
   _ctx: lisp.Env<T>,
   rest: lisp.Rest<T>,
-): lisp.Object<T> {
+): Promise<lisp.Object<T>> {
   while (args.isNotEmpty) {
     if (args.fst.asBool) {
       return rest(args.fst);
@@ -132,8 +132,8 @@ function proc_not<T>(
   args: lisp.Object<T>,
   _ctx: lisp.Env<T>,
   rest: lisp.Rest<T>,
-): lisp.Object<T> {
-  const result = new lisp.Bool(!args.fst.asBool);
+): Promise<lisp.Object<T>> {
+  const result = new lisp.Bool<T>(!args.fst.asBool);
   return rest(result);
 }
 
@@ -141,7 +141,7 @@ function proc_wrap<T>(
   args: lisp.Object<T>,
   _ctx: lisp.Env<T>,
   rest: lisp.Rest<T>,
-): lisp.Object<T> {
+): Promise<lisp.Object<T>> {
   const result = new lisp.Fn(args.fst);
   return rest(result);
 }
@@ -150,42 +150,44 @@ function proc_unwrap<T>(
   args: lisp.Object<T>,
   _ctx: lisp.Env<T>,
   rest: lisp.Rest<T>,
-): lisp.Object<T> {
+): Promise<lisp.Object<T>> {
   if (!(args.fst instanceof lisp.Fn)) throw args;
   const result = args.fst.body;
   return rest(result);
 }
 
-function proc_reset<T>(
+async function proc_reset<T>(
   args: lisp.Object<T>,
   ctx: lisp.Env<T>,
   rest: lisp.Rest<T>,
-): lisp.Object<T> {
-  return rest(args.execute(ctx, (x) => x));
+): Promise<lisp.Object<T>> {
+  const result = await args.execute(ctx, (x) => Promise.resolve(x));
+  return rest(result);
 }
 
 function proc_shift<T>(
   args: lisp.Object<T>,
   ctx: lisp.Env<T>,
   rest_outer: lisp.Rest<T>,
-): lisp.Object<T> {
-  const body = new lisp.Proc("shift#<closure>", (
+): Promise<lisp.Object<T>> {
+  const body = new lisp.Proc("shift#<closure>", async (
     args: lisp.Object<T>,
     _ctx: lisp.Env<T>,
     rest_inner: lisp.Rest<T>,
-  ): lisp.Object<T> => {
-    return rest_inner(rest_outer(args.fst));
+  ): Promise<lisp.Object<T>> => {
+    const result_outer = await rest_outer(args.fst);
+    return rest_inner(result_outer);
   });
   const ks = new lisp.Fn(body);
   const xs = new lisp.Pair(ks, lisp.nil());
-  return args.fst.apply(xs, ctx, (x) => x);
+  return args.fst.apply(xs, ctx, (x) => Promise.resolve(x));
 }
 
 function proc_eval<T>(
   args: lisp.Object<T>,
   _ctx: lisp.Env<T>,
   rest: lisp.Rest<T>,
-): lisp.Object<T> {
+): Promise<lisp.Object<T>> {
   if (!(args.snd.fst instanceof lisp.Env)) throw args;
   return args.fst.evaluate(args.snd.fst, rest);
 }
@@ -194,23 +196,23 @@ function proc_def<T>(
   args: lisp.Object<T>,
   ctx: lisp.Env<T>,
   rest: lisp.Rest<T>,
-): lisp.Object<T> {
+): Promise<lisp.Object<T>> {
   return args.snd.fst.evaluate(ctx, (rhs) => {
     args.fst.bind(rhs, ctx);
     return rest(lisp.nil());
   });
 }
 
-function proc_let_star<T>(
+async function proc_let_star<T>(
   args: lisp.Object<T>,
   ctx: lisp.Env<T>,
   rest: lisp.Rest<T>,
-): lisp.Object<T> {
+): Promise<lisp.Object<T>> {
   let local = new lisp.Env(ctx);
   let bindings = args.fst;
   while (bindings.isNotEmpty) {
     const lhs = bindings.fst;
-    const rhs = bindings.snd.fst.evaluate(local, (x) => x);
+    const rhs = await bindings.snd.fst.evaluate(local, (x) => Promise.resolve(x));
     lhs.bind(rhs, local);
     bindings = bindings.snd.snd;
   }
@@ -221,7 +223,7 @@ function proc_apply<T>(
   args: lisp.Object<T>,
   ctx: lisp.Env<T>,
   rest: lisp.Rest<T>,
-): lisp.Object<T> {
+): Promise<lisp.Object<T>> {
   return args.fst.apply(args.snd, ctx, rest);
 }
 
@@ -229,7 +231,7 @@ function proc_list<T>(
   args: lisp.Object<T>,
   _ctx: lisp.Env<T>,
   rest: lisp.Rest<T>,
-): lisp.Object<T> {
+): Promise<lisp.Object<T>> {
   return rest(args);
 }
 
@@ -237,7 +239,7 @@ function proc_list_star<T>(
   args: lisp.Object<T>,
   _ctx: lisp.Env<T>,
   rest: lisp.Rest<T>,
-): lisp.Object<T> {
+): Promise<lisp.Object<T>> {
   if (args.isEmpty) {
     return rest(lisp.nil());
   }
@@ -253,7 +255,7 @@ function proc_pair<T>(
   args: lisp.Object<T>,
   _ctx: lisp.Env<T>,
   rest: lisp.Rest<T>,
-): lisp.Object<T> {
+): Promise<lisp.Object<T>> {
   const result = new lisp.Pair(args.fst, args.snd.fst);
   return rest(result);
 }
@@ -262,7 +264,7 @@ function proc_fst<T>(
   args: lisp.Object<T>,
   _ctx: lisp.Env<T>,
   rest: lisp.Rest<T>,
-): lisp.Object<T> {
+): Promise<lisp.Object<T>> {
   return rest(args.fst.fst);
 }
 
@@ -270,7 +272,7 @@ function proc_snd<T>(
   args: lisp.Object<T>,
   _ctx: lisp.Env<T>,
   rest: lisp.Rest<T>,
-): lisp.Object<T> {
+): Promise<lisp.Object<T>> {
   return rest(args.fst.snd);
 }
 
@@ -278,8 +280,8 @@ function proc_len<T>(
   args: lisp.Object<T>,
   _ctx: lisp.Env<T>,
   rest: lisp.Rest<T>,
-): lisp.Object<T> {
-  const result = new lisp.Num(args.fst.len);
+): Promise<lisp.Object<T>> {
+  const result = new lisp.Num<T>(args.fst.len);
   return rest(result);
 }
 
@@ -287,21 +289,21 @@ function proc_append<T>(
   args: lisp.Object<T>,
   _ctx: lisp.Env<T>,
   rest: lisp.Rest<T>,
-): lisp.Object<T> {
+): Promise<lisp.Object<T>> {
   let items = args.toArray();
-  let state = lisp.nil();
+  let state = lisp.nil<T>();
   for (const item of reverse(items)) {
     state = item.append(state);
   }
   return rest(state);
 }
 
-function proc_map<T>(
+async function proc_map<T>(
   args: lisp.Object<T>,
   ctx: lisp.Env<T>,
   rest: lisp.Rest<T>,
-): lisp.Object<T> {
-  const result = args.snd.fst.map(args.fst, ctx);
+): Promise<lisp.Object<T>> {
+  const result = await args.snd.fst.map(args.fst, ctx);
   return rest(result);
 }
 
@@ -309,13 +311,13 @@ function proc_add<T>(
   args: lisp.Object<T>,
   _ctx: lisp.Env<T>,
   rest: lisp.Rest<T>,
-): lisp.Object<T> {
+): Promise<lisp.Object<T>> {
   let state = 0;
   while (args.isNotEmpty) {
     state += args.fst.asNum;
     args = args.snd;
   }
-  const result = new lisp.Num(state);
+  const result = new lisp.Num<T>(state);
   return rest(result);
 }
 
@@ -323,13 +325,13 @@ function proc_mul<T>(
   args: lisp.Object<T>,
   _ctx: lisp.Env<T>,
   rest: lisp.Rest<T>,
-): lisp.Object<T> {
+): Promise<lisp.Object<T>> {
   let state = 1;
   while (args.isNotEmpty) {
     state *= args.fst.asNum;
     args = args.snd;
   }
-  const result = new lisp.Num(state);
+  const result = new lisp.Num<T>(state);
   return rest(result);
 }
 
@@ -337,7 +339,7 @@ function proc_neg<T>(
   args: lisp.Object<T>,
   _ctx: lisp.Env<T>,
   rest: lisp.Rest<T>,
-): lisp.Object<T> {
+): Promise<lisp.Object<T>> {
   if (args.isEmpty) throw args;
   let state = args.fst.asNum;
   args = args.snd;
@@ -345,7 +347,7 @@ function proc_neg<T>(
     state -= args.fst.asNum;
     args = args.snd;
   }
-  const result = new lisp.Num(state);
+  const result = new lisp.Num<T>(state);
   return rest(result);
 }
 
@@ -353,7 +355,7 @@ function proc_inv<T>(
   args: lisp.Object<T>,
   _ctx: lisp.Env<T>,
   rest: lisp.Rest<T>,
-): lisp.Object<T> {
+): Promise<lisp.Object<T>> {
   if (args.isEmpty) throw args;
   let state = args.fst.asNum;
   args = args.snd;
@@ -361,7 +363,7 @@ function proc_inv<T>(
     state /= args.fst.asNum;
     args = args.snd;
   }
-  const result = new lisp.Num(state);
+  const result = new lisp.Num<T>(state);
   return rest(result);
 }
 
@@ -369,7 +371,7 @@ function proc_print<T>(
   args: lisp.Object<T>,
   _ctx: lisp.Env<T>,
   rest: lisp.Rest<T>,
-): lisp.Object<T> {
+): Promise<lisp.Object<T>> {
   let buffer = [];
   while (args.isNotEmpty) {
     buffer.push(`${args.fst}`);
@@ -384,8 +386,8 @@ function proc_empty_env<T>(
   args: lisp.Object<T>,
   _ctx: lisp.Env<T>,
   rest: lisp.Rest<T>,
-): lisp.Object<T> {
-  const result = new lisp.Env();
+): Promise<lisp.Object<T>> {
+  const result = new lisp.Env<T>();
   return rest(result);
 }
 
@@ -393,8 +395,8 @@ function proc_initial_env<T>(
   args: lisp.Object<T>,
   _ctx: lisp.Env<T>,
   rest: lisp.Rest<T>,
-): lisp.Object<T> {
-  const result = initial();
+): Promise<lisp.Object<T>> {
+  const result = initial<T>();
   return rest(result);
 }
 
@@ -402,7 +404,7 @@ function proc_assert<T>(
   args: lisp.Object<T>,
   _ctx: lisp.Env<T>,
   rest: lisp.Rest<T>,
-): lisp.Object<T> {
+): Promise<lisp.Object<T>> {
   while (args.isNotEmpty) {
     if (!args.fst.asBool) throw arguments[0];
     args = args.snd;
@@ -414,7 +416,7 @@ function proc_do<T>(
   args: lisp.Object<T>,
   ctx: lisp.Env<T>,
   rest: lisp.Rest<T>,
-): lisp.Object<T> {
+): Promise<lisp.Object<T>> {
   return args.execute(ctx, rest);
 }
 
@@ -422,27 +424,27 @@ function proc_to_str<T>(
   args: lisp.Object<T>,
   _ctx: lisp.Env<T>,
   rest: lisp.Rest<T>,
-): lisp.Object<T> {
-  const result = new lisp.Str(`${args.fst}`);
+): Promise<lisp.Object<T>> {
+  const result = new lisp.Str<T>(`${args.fst}`);
   return rest(result);
 }
 
 export default function initial<T>(): lisp.Env<T> {
-  let env = new lisp.Env();
+  let env = new lisp.Env<T>();
 
-  const proc_is_bool = mk_type((x) => x instanceof lisp.Bool);
-  const proc_is_sym = mk_type((x) => x instanceof lisp.Sym);
-  const proc_is_num = mk_type((x) => x instanceof lisp.Num);
-  const proc_is_str = mk_type((x) => x instanceof lisp.Str);
-  const proc_is_nil = mk_type((x) => x instanceof lisp.Nil);
-  const proc_is_pair = mk_type((x) => x instanceof lisp.Pair);
-  const proc_is_list = mk_type((x) => x.isList);
-  const proc_is_env = mk_type((x) => x instanceof lisp.Env);
-  const proc_is_macro = mk_type((x) => {
+  const proc_is_bool = mk_type<T>((x) => x instanceof lisp.Bool);
+  const proc_is_sym = mk_type<T>((x) => x instanceof lisp.Sym);
+  const proc_is_num = mk_type<T>((x) => x instanceof lisp.Num);
+  const proc_is_str = mk_type<T>((x) => x instanceof lisp.Str);
+  const proc_is_nil = mk_type<T>((x) => x instanceof lisp.Nil);
+  const proc_is_pair = mk_type<T>((x) => x instanceof lisp.Pair);
+  const proc_is_list = mk_type<T>((x) => x.isList);
+  const proc_is_env = mk_type<T>((x) => x instanceof lisp.Env);
+  const proc_is_macro = mk_type<T>((x) => {
     return x instanceof lisp.Macro || x instanceof lisp.Proc;
   });
-  const proc_is_fn = mk_type((x) => x instanceof lisp.Fn);
-  const proc_is_proc = mk_type((x) => {
+  const proc_is_fn = mk_type<T>((x) => x instanceof lisp.Fn);
+  const proc_is_proc = mk_type<T>((x) => {
     return (
       x instanceof lisp.Macro ||
       x instanceof lisp.Fn ||

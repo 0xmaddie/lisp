@@ -85,7 +85,7 @@ export function read<T>(source: string): ob.Object<T>[] {
         if (build_stack.length === 0) {
           throw `unbalanced parentheses`;
         }
-        const value = ob.list(build, { dot });
+        const value = ob.list<T>(build, { dot });
         build = build_stack.pop()!;
         build.push(value);
         dot = dot_stack.pop()!;
@@ -100,29 +100,29 @@ export function read<T>(source: string): ob.Object<T>[] {
         break;
       }
       case "number": {
-        const value = new ob.Num(token.value);
+        const value = new ob.Num<T>(token.value);
         build.push(value);
         break;
       }
       case "string": {
-        const value = new ob.Str(token.value);
+        const value = new ob.Str<T>(token.value);
         build.push(value);
         break;
       }
       case "symbol": {
-        const value = new ob.Sym(token.name);
+        const value = new ob.Sym<T>(token.name);
         build.push(value);
         break;
       }
       case "constant": {
         switch (token.name) {
           case "t": {
-            const value = new ob.Bool(true);
+            const value = new ob.Bool<T>(true);
             build.push(value);
             break;
           }
           case "f": {
-            const value = new ob.Bool(false);
+            const value = new ob.Bool<T>(false);
             build.push(value);
             break;
           }

@@ -21,7 +21,7 @@ Deno.test({
         const code = `(${name} ${fst} ${snd})`;
         const xs = lisp.read(code);
         assert(xs.length === 1);
-        xs[0].evaluate(ctx, (result) => {
+        xs[0].evaluate(ctx, async (result) => {
           assert(
             result instanceof lisp.Num,
             `
@@ -64,7 +64,7 @@ Deno.test({
         const code = `(${key} ${row[0]} ${row[1]})`;
         const body = lisp.read(code);
         assert(body.length === 1);
-        body[0].evaluate(ctx, (result) => {
+        body[0].evaluate(ctx, async (result) => {
           assert(result instanceof lisp.Bool);
           assert(result.equal(row[2]));
           return result;
@@ -76,7 +76,7 @@ Deno.test({
 
 Deno.test({
   name: "shift/reset sanity",
-  fn(): void {
+  async fn() {
     let ctx = lisp.initial();
     // https://en.wikipedia.org/wiki/Delimited_continuation
     //
@@ -102,7 +102,7 @@ Deno.test({
     const code = `(* 2 (reset (+ 1 (shift (wrap (macro (k) e (k 5)))))))`;
     const body = lisp.read(code);
     assert(body.length === 1);
-    const result = body[0].evaluate(ctx, (x) => x);
+    const result = await body[0].evaluate(ctx, (x) => Promise.resolve(x));
     assert(result instanceof lisp.Num);
     assert(result.value === 12);
   },
