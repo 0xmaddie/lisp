@@ -59,7 +59,7 @@ export abstract class Object<T> {
     throw `${this} is not a list`;
   }
 
-  map(_fn: Object<T>, _ctx: Env<T>): Promise<Object<T>> {
+  map(_fn: Object<T>, _ctx: Env<T>, _rest: Rest<T>): Promise<Object<T>> {
     throw `${this} is not a list`;
   }
 
@@ -121,8 +121,8 @@ export class Nil<T> extends Object<T> {
     return rhs;
   }
 
-  map(_fn: Object<T>, _ctx: Env<T>): Promise<Object<T>> {
-    return Promise.resolve(this);
+  async map(_fn: Object<T>, _ctx: Env<T>, rest: Rest<T>): Promise<Object<T>> {
+    return rest(this);
   }
 
   evaluateAll(_ctx: Env<T>, rest: Rest<T>): Promise<Object<T>> {
@@ -195,10 +195,17 @@ export class Pair<T> extends Object<T> {
     return new Pair(this.fst, snd);
   }
 
-  async map(fn: Object<T>, ctx: Env<T>): Promise<Object<T>> {
-    const fst = await fn.apply(list([this.fst]), ctx, (x) => Promise.resolve(x));
-    const snd = await this.snd.map(fn, ctx);
-    return new Pair(fst, snd);
+  async map(
+    fn: Object<T>,
+    ctx: Env<T>,
+    rest: Rest<T>,
+  ): Promise<Object<T>> {
+    return fn.apply(list([this.fst]), ctx, async (fst) => {
+      return this.snd.map(fn, ctx, async (snd) => {
+        const result = new Pair(fst, snd);
+        return rest(result);
+      });
+    });
   }
 
   async evaluate(ctx: Env<T>, rest: Rest<T>): Promise<Object<T>> {
@@ -375,8 +382,8 @@ export class Sym<T> extends Object<T> {
   }
 
   evaluate(ctx: Env<T>, rest: Rest<T>): Promise<Object<T>> {
-    const binding = ctx.lookup(this);
-    return rest(binding);
+    const entry = ctx.lookup(this);
+    return rest(entry.value);
   }
 
   bind(rhs: Object<T>, ctx: Env<T>): void {
@@ -404,8 +411,25 @@ function nameof<T>(key: string | Object<T>): string {
   return key.asSym;
 }
 
+export class Entry<T> {
+  value: Object<T>;
+  doc?: string;
+
+  constructor(value: Object<T>, doc?: string) {
+    this.value = value;
+    this.doc = doc;
+  }
+
+  toString(): string {
+    if (this.doc) {
+      return `${this.value}\n${this.doc}`;
+    }
+    return `${this.value}`;
+  }
+}
+
 export class Env<T> extends Object<T> {
-  frame: Map<string, Object<T>>;
+  frame: Map<string, Entry<T>>;
   parent?: Env<T>;
 
   constructor(parent?: Env<T>) {
@@ -419,10 +443,11 @@ export class Env<T> extends Object<T> {
   }
 
   apply(args: Object<T>, _ctx: Env<T>, rest: Rest<T>): Promise<Object<T>> {
-    return rest(this.lookup(args.fst));
+    const entry = this.lookup(args.fst);
+    return rest(entry.value);
   }
 
-  lookup(key: string | Object<T>): Object<T> {
+  lookup(key: string | Object<T>): Entry<T> {
     const name = nameof(key);
     if (this.frame.has(name)) {
       return this.frame.get(name)!;
@@ -433,13 +458,18 @@ export class Env<T> extends Object<T> {
     throw `${key} is undefined`;
   }
 
-  define(key: string | Object<T>, value: Object<T>): void {
+  define(key: string | Object<T>, rhs: Object<T> | Entry<T>): void {
     const name = nameof(key);
     if (this.frame.has(name)) {
-      const value = this.frame.get(name);
-      throw `${key} is already defined as ${value}`;
+      const entry = this.frame.get(name);
+      throw `${key} is already defined as ${rhs}`;
     }
-    this.frame.set(name, value);
+    if (rhs instanceof Object) {
+      const entry = new Entry(rhs);
+      this.frame.set(name, entry);
+    } else {
+      this.frame.set(name, rhs);
+    }
   }
 
   remove(key: string | Object<T>): void {

@@ -27,3 +27,11 @@
 (print! (sym? (quote foo)))
 
 (print! (map (fn (x) (+ x 1)) (list 1 2 3 4 5)))
+
+(defn foo (bar baz qux)
+  "Just a simple function."
+  (print! "bar =" bar)
+  (print! "baz =" baz)
+  (print! "qux =" qux))
+
+(foo 1 2 3)

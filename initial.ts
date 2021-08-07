@@ -62,14 +62,16 @@ async function proc_cond<T>(
   ctx: lisp.Env<T>,
   rest: lisp.Rest<T>,
 ): Promise<lisp.Object<T>> {
-  while (args.isNotEmpty) {
-    const flag = await args.fst.evaluate(ctx, (x) => Promise.resolve(x));
-    if (flag.asBool) {
-      return args.snd.fst.evaluate(ctx, rest);
-    }
-    args = args.snd.snd;
+  if (args.isNotEmpty) {
+    return args.fst.fst.evaluate(ctx, async (flag) => {
+      if (flag.asBool) {
+        return args.fst.snd.fst.evaluate(ctx, rest);
+      } else {
+        return proc_cond(args.snd, ctx, rest);
+      }
+    });
   }
-  return rest(lisp.nil());
+  return rest(lisp.nil<T>());
 }
 
 function proc_macro<T>(
@@ -161,7 +163,7 @@ async function proc_reset<T>(
   ctx: lisp.Env<T>,
   rest: lisp.Rest<T>,
 ): Promise<lisp.Object<T>> {
-  const result = await args.execute(ctx, (x) => Promise.resolve(x));
+  const result = await args.execute(ctx, async (x) => x);
   return rest(result);
 }
 
@@ -180,7 +182,7 @@ function proc_shift<T>(
   });
   const ks = new lisp.Fn(body);
   const xs = new lisp.Pair(ks, lisp.nil());
-  return args.fst.apply(xs, ctx, (x) => Promise.resolve(x));
+  return args.fst.apply(xs, ctx, async (x) => x);
 }
 
 function proc_eval<T>(
@@ -203,22 +205,53 @@ function proc_def<T>(
   });
 }
 
+function proc_defn<T>(
+  args: lisp.Object<T>,
+  ctx: lisp.Env<T>,
+  rest: lisp.Rest<T>,
+): Promise<lisp.Object<T>> {
+  const name = args.fst.asSym;
+  const parameters = args.snd.fst;
+  let data = args.snd.snd;
+  if (data.len > 1 && data.fst instanceof lisp.Str) {
+    const doc = data.fst.asStr;
+    const body = data.snd;
+    const proc = new lisp.Fn(
+      new lisp.Macro(parameters, body, ctx, new lisp.Sym("_")),
+    );
+    const entry = new lisp.Entry(proc, doc);
+    ctx.define(name, entry);
+  } else {
+    const body = data;
+    const proc = new lisp.Fn(
+      new lisp.Macro(parameters, body, ctx, new lisp.Sym("_")),
+    );
+    ctx.define(name, proc);
+  }
+  const result = lisp.nil<T>();
+  return rest(result);
+}
+
 async function proc_let_star<T>(
   args: lisp.Object<T>,
   ctx: lisp.Env<T>,
   rest: lisp.Rest<T>,
 ): Promise<lisp.Object<T>> {
   let local = new lisp.Env(ctx);
-  let bindings = args.fst;
-  while (bindings.isNotEmpty) {
-    const lhs = bindings.fst.fst;
-    const rhs = await bindings.fst.snd.fst.evaluate(local, (x) => Promise.resolve(x));
-    //const lhs = bindings.fst;
-    //const rhs = await bindings.snd.fst.evaluate(local, (x) => Promise.resolve(x));
-    lhs.bind(rhs, local);
-    bindings = bindings.snd;
+  function iterate(
+    bindings: lisp.Object<T>,
+  ): Promise<lisp.Object<T>> {
+    if (bindings.isNotEmpty) {
+      const lhs = bindings.fst.fst;
+      return bindings.fst.snd.fst.evaluate(local, async (rhs) => {
+        lhs.bind(rhs, local);
+        return iterate(bindings.snd);
+      });
+    } else {
+      return args.snd.execute(local, rest);
+    }
   }
-  return args.snd.execute(local, rest);
+  return iterate(args.fst);
 }
 
 function proc_apply<T>(
@@ -305,8 +338,7 @@ async function proc_map<T>(
   ctx: lisp.Env<T>,
   rest: lisp.Rest<T>,
 ): Promise<lisp.Object<T>> {
-  const result = await args.snd.fst.map(args.fst, ctx);
-  return rest(result);
+  return args.snd.fst.map(args.fst, ctx, rest);
 }
 
 function proc_add<T>(
@@ -376,7 +408,11 @@ function proc_print<T>(
 ): Promise<lisp.Object<T>> {
   let buffer = [];
   while (args.isNotEmpty) {
-    buffer.push(`${args.fst}`);
+    if (args.fst instanceof lisp.Str) {
+      buffer.push(args.fst.asStr);
+    } else {
+      buffer.push(`${args.fst}`);
+    }
     args = args.snd;
   }
   const data = buffer.join(" ");
@@ -482,6 +518,7 @@ export default function initial<T>(): lisp.Env<T> {
   // Env
   env.defmacro("eval", proc_eval);
   env.defmacro("def", proc_def);
+  env.defmacro("defn", proc_defn);
   env.defmacro("let", proc_let_star);
   env.defn("env?", proc_is_env);
   env.defn("empty-env", proc_empty_env);
