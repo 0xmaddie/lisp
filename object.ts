@@ -483,7 +483,7 @@ export class Env<T> extends Object<T> {
   }
 
   defn(name: string, body: Fproc<T>): void {
-    const value = new Fn(new Proc(name, body));
+    const value = new Wrap(new Proc(name, body));
     this.define(name, value);
   }
 
@@ -533,7 +533,7 @@ export class Macro<T> extends Object<T> {
   }
 }
 
-export class Fn<T> extends Object<T> {
+export class Wrap<T> extends Object<T> {
   body: Object<T>;
 
   constructor(body: Object<T>) {

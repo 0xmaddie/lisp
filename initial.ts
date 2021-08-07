@@ -125,7 +125,7 @@ async function proc_fn<T>(
   const body = args.snd;
   const dynamic = lisp.ignore<T>();
   const lexical = ctx;
-  const result = new lisp.Fn(
+  const result = new lisp.Wrap(
     new lisp.Macro(head, body, lexical, dynamic),
   );
   return rest(result);
@@ -173,7 +173,7 @@ function proc_wrap<T>(
   _ctx: lisp.Env<T>,
   rest: lisp.Rest<T>,
 ): Promise<lisp.Object<T>> {
-  const result = new lisp.Fn(args.fst);
+  const result = new lisp.Wrap(args.fst);
   return rest(result);
 }
 
@@ -182,7 +182,7 @@ function proc_unwrap<T>(
   _ctx: lisp.Env<T>,
   rest: lisp.Rest<T>,
 ): Promise<lisp.Object<T>> {
-  if (!(args.fst instanceof lisp.Fn)) throw args;
+  if (!(args.fst instanceof lisp.Wrap)) throw args;
   const result = args.fst.body;
   return rest(result);
 }
@@ -209,7 +209,7 @@ function proc_shift<T>(
     const result_outer = await rest_outer(args.fst);
     return rest_inner(result_outer);
   });
-  const ks = new lisp.Fn(body);
+  const ks = new lisp.Wrap(body);
   const xs = new lisp.Pair(ks, lisp.nil());
   return args.fst.apply(xs, ctx, async (x) => x);
 }
@@ -245,14 +245,14 @@ function proc_defn<T>(
   if (data.len > 1 && data.fst instanceof lisp.Str) {
     const doc = data.fst.asStr;
     const body = data.snd;
-    const proc = new lisp.Fn(
+    const proc = new lisp.Wrap(
       new lisp.Macro(parameters, body, ctx, new lisp.Sym("_")),
     );
     const entry = new lisp.Entry(proc, doc);
     ctx.define(name, entry);
   } else {
     const body = data;
-    const proc = new lisp.Fn(
+    const proc = new lisp.Wrap(
       new lisp.Macro(parameters, body, ctx, new lisp.Sym("_")),
     );
     ctx.define(name, proc);
@@ -510,11 +510,11 @@ export default function initial<T>(): lisp.Env<T> {
   const proc_is_macro = mk_type<T>((x) => {
     return x instanceof lisp.Macro || x instanceof lisp.Proc;
   });
-  const proc_is_fn = mk_type<T>((x) => x instanceof lisp.Fn);
+  const proc_is_fn = mk_type<T>((x) => x instanceof lisp.Wrap);
   const proc_is_proc = mk_type<T>((x) => {
     return (
       x instanceof lisp.Macro ||
-      x instanceof lisp.Fn ||
+      x instanceof lisp.Wrap ||
       x instanceof lisp.Proc
     );
   });
