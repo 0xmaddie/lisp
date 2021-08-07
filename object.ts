@@ -521,10 +521,10 @@ export class Macro<T> extends Object<T> {
       this.head.bind(args, local);
       this.dynamic.bind(ctx, local);
       return this.body.execute(local, rest);
-    } catch (_) {
+    } catch (error) {
       const lhs = `${this.head} ${this.dynamic}`;
       const rhs = `${args} ${ctx}`;
-      throw `vau: ${lhs} couldn't bind ${rhs}`;
+      throw `${error} @ macro: ${lhs} ${rhs}`;
     }
   }
 

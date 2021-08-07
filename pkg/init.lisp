@@ -35,3 +35,9 @@
   (print! "qux =" qux))
 
 (foo 1 2 3)
+
+(print! (case 2
+          ((0) "zero")
+          ((1) "one")
+          ((2) "two")
+          ((3) "three")))

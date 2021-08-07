@@ -74,6 +74,34 @@ async function proc_cond<T>(
   return rest(lisp.nil<T>());
 }
 
+async function proc_case<T>(
+  args: lisp.Object<T>,
+  ctx: lisp.Env<T>,
+  rest: lisp.Rest<T>,
+): Promise<lisp.Object<T>> {
+  const target = args.fst;
+  function iterate(
+    data: lisp.Object<T>,
+  ): Promise<lisp.Object<T>> {
+    if (data.isNotEmpty) {
+      return data.fst.fst.evaluateAll(ctx, async (xs) => {
+        while (xs.isNotEmpty) {
+          const pattern = xs.fst;
+          if (pattern.equal(target)) {
+            return data.fst.snd.execute(ctx, rest);
+          }
+          xs = xs.snd;
+        }
+        return iterate(data.snd);
+      });
+    } else {
+      const result = lisp.nil<T>();
+      return rest(result);
+    }
+  }
+  return iterate(args.snd);
+}
+
 function proc_macro<T>(
   args: lisp.Object<T>,
   ctx: lisp.Env<T>,
@@ -560,6 +588,7 @@ export default function initial<T>(): lisp.Env<T> {
 
   // Control
   env.defmacro("cond", proc_cond);
+  env.defmacro("case", proc_case);
   env.defmacro("if", proc_if);
   env.defmacro("do", proc_do);
   env.defn("reset", proc_reset);
