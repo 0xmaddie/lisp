@@ -79,27 +79,28 @@ async function proc_case<T>(
   ctx: lisp.Env<T>,
   rest: lisp.Rest<T>,
 ): Promise<lisp.Object<T>> {
-  const target = args.fst;
-  function iterate(
-    data: lisp.Object<T>,
-  ): Promise<lisp.Object<T>> {
-    if (data.isNotEmpty) {
-      return data.fst.fst.evaluateAll(ctx, async (xs) => {
-        while (xs.isNotEmpty) {
-          const pattern = xs.fst;
-          if (pattern.equal(target)) {
-            return data.fst.snd.execute(ctx, rest);
+  return args.fst.evaluate(ctx, (target) => {
+    function iterate(
+      data: lisp.Object<T>,
+    ): Promise<lisp.Object<T>> {
+      if (data.isNotEmpty) {
+        return data.fst.fst.evaluateAll(ctx, async (xs) => {
+          while (xs.isNotEmpty) {
+            const pattern = xs.fst;
+            if (pattern.equal(target)) {
+              return data.fst.snd.execute(ctx, rest);
+            }
+            xs = xs.snd;
           }
-          xs = xs.snd;
-        }
-        return iterate(data.snd);
-      });
-    } else {
-      const result = lisp.nil<T>();
-      return rest(result);
+          return iterate(data.snd);
+        });
+      } else {
+        const result = lisp.nil<T>();
+        return rest(result);
+      }
     }
-  }
-  return iterate(args.snd);
+    return iterate(args.snd);
+  });
 }
 
 function proc_macro<T>(

@@ -41,3 +41,25 @@
           ((1) "one")
           ((2) "two")
           ((3) "three")))
+
+(defn pico8-color (index)
+  "Map a Pico 8 color index to a CSS color string."
+  (case index
+    ((0) "#000000")
+    ((1) "#1d2b53")
+    ((2) "#7e2553")
+    ((3) "#008751")
+    ((4) "#ab5236")
+    ((5) "#5f574f")
+    ((6) "#c2c3c7")
+    ((7) "#fff1e8")
+    ((8) "#ff004d")
+    ((9) "#ffa300")
+    ((10) "#ffec27")
+    ((11) "#00e436")
+    ((12) "#29adff")
+    ((13) "#83769c")
+    ((14) "#ff77a8")
+    ((15) "#ffccaa")))
+
+(print (pico8-color 5))
