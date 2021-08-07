@@ -598,8 +598,8 @@ export default function initial<T>(): lisp.Env<T> {
   env.defn("=", proc_is_equal);
 
   // Input/Output
-  env.defn("print!", proc_print);
-  env.defn("assert!", proc_assert);
+  env.defn("print", proc_print);
+  env.defn("assert", proc_assert);
   env.defn("->str", proc_to_str);
 
   return env;
