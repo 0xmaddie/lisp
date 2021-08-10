@@ -1,8 +1,8 @@
 import { assert } from "https://deno.land/std@0.97.0/testing/asserts.ts";
 
-export type Rest<T> = (value: Object<T>) => Promise<Object<T>>;
+export type Rest<T> = (value: Obj<T>) => Promise<Obj<T>>;
 
-export abstract class Object<T> {
+export abstract class Obj<T> {
   get isList(): boolean {
     return false;
   }
@@ -15,11 +15,11 @@ export abstract class Object<T> {
     return false;
   }
 
-  get fst(): Object<T> {
+  get fst(): Obj<T> {
     throw `${this} is not a pair`;
   }
 
-  get snd(): Object<T> {
+  get snd(): Obj<T> {
     throw `${this} is not a pair`;
   }
 
@@ -55,44 +55,44 @@ export abstract class Object<T> {
     throw `${this} is not a list`;
   }
 
-  append(_rhs: Object<T>): Object<T> {
+  append(_rhs: Obj<T>): Obj<T> {
     throw `${this} is not a list`;
   }
 
-  map(_fn: Object<T>, _ctx: Env<T>, _rest: Rest<T>): Promise<Object<T>> {
+  map(_fn: Obj<T>, _ctx: Env<T>, _rest: Rest<T>): Promise<Obj<T>> {
     throw `${this} is not a list`;
   }
 
-  evaluate(_ctx: Env<T>, rest: Rest<T>): Promise<Object<T>> {
+  evaluate(_ctx: Env<T>, rest: Rest<T>): Promise<Obj<T>> {
     return rest(this);
   }
 
-  evaluateAll(_ctx: Env<T>, _rest: Rest<T>): Promise<Object<T>> {
+  evaluateAll(_ctx: Env<T>, _rest: Rest<T>): Promise<Obj<T>> {
     throw `${this} is not a list`;
   }
 
-  execute(_ctx: Env<T>, _rest: Rest<T>): Promise<Object<T>> {
+  execute(_ctx: Env<T>, _rest: Rest<T>): Promise<Obj<T>> {
     throw `${this} is not a list`;
   }
 
-  apply(_args: Object<T>, _ctx: Env<T>, _rest: Rest<T>): Promise<Object<T>> {
+  apply(_args: Obj<T>, _ctx: Env<T>, _rest: Rest<T>): Promise<Obj<T>> {
     throw `${this} is not a procedure`;
   }
 
-  bind(args: Object<T>, _ctx: Env<T>): void {
+  bind(args: Obj<T>, _ctx: Env<T>): void {
     throw `${this} cannot bind ${args}`;
   }
 
-  toArray(): Object<T>[] {
+  toArray(): Obj<T>[] {
     throw `${this} is not a list`;
   }
 
-  equal(rhs: Object<T>): boolean {
+  equal(rhs: Obj<T>): boolean {
     return this === rhs;
   }
 }
 
-export class Nil<T> extends Object<T> {
+export class Nil<T> extends Obj<T> {
   constructor() {
     super();
   }
@@ -117,29 +117,29 @@ export class Nil<T> extends Object<T> {
     return false;
   }
 
-  append(rhs: Object<T>): Object<T> {
+  append(rhs: Obj<T>): Obj<T> {
     return rhs;
   }
 
-  async map(_fn: Object<T>, _ctx: Env<T>, rest: Rest<T>): Promise<Object<T>> {
+  async map(_fn: Obj<T>, _ctx: Env<T>, rest: Rest<T>): Promise<Obj<T>> {
     return rest(this);
   }
 
-  evaluateAll(_ctx: Env<T>, rest: Rest<T>): Promise<Object<T>> {
+  evaluateAll(_ctx: Env<T>, rest: Rest<T>): Promise<Obj<T>> {
     return rest(this);
   }
 
-  execute(_ctx: Env<T>, rest: Rest<T>): Promise<Object<T>> {
+  execute(_ctx: Env<T>, rest: Rest<T>): Promise<Obj<T>> {
     return rest(this);
   }
 
-  bind(rhs: Object<T>, _ctx: Env<T>): void {
+  bind(rhs: Obj<T>, _ctx: Env<T>): void {
     if (!(rhs instanceof Nil)) {
       throw `() cannot bind ${rhs}`;
     }
   }
 
-  toArray(): Object<T>[] {
+  toArray(): Obj<T>[] {
     return [];
   }
 
@@ -147,16 +147,16 @@ export class Nil<T> extends Object<T> {
     return "()";
   }
 
-  equal(rhs: Object<T>): boolean {
+  equal(rhs: Obj<T>): boolean {
     return rhs instanceof Nil;
   }
 }
 
-export class Pair<T> extends Object<T> {
-  _fst: Object<T>;
-  _snd: Object<T>;
+export class Pair<T> extends Obj<T> {
+  _fst: Obj<T>;
+  _snd: Obj<T>;
 
-  constructor(fst: Object<T>, snd: Object<T>) {
+  constructor(fst: Obj<T>, snd: Obj<T>) {
     super();
     this._fst = fst;
     this._snd = snd;
@@ -170,11 +170,11 @@ export class Pair<T> extends Object<T> {
     return this.fst.canBind && this.snd.canBind;
   }
 
-  get fst(): Object<T> {
+  get fst(): Obj<T> {
     return this._fst;
   }
 
-  get snd(): Object<T> {
+  get snd(): Obj<T> {
     return this._snd;
   }
 
@@ -190,16 +190,16 @@ export class Pair<T> extends Object<T> {
     return true;
   }
 
-  append(rhs: Object<T>): Object<T> {
+  append(rhs: Obj<T>): Obj<T> {
     const snd = this.snd.append(rhs);
     return new Pair(this.fst, snd);
   }
 
   async map(
-    fn: Object<T>,
+    fn: Obj<T>,
     ctx: Env<T>,
     rest: Rest<T>,
-  ): Promise<Object<T>> {
+  ): Promise<Obj<T>> {
     return fn.apply(list([this.fst]), ctx, async (fst) => {
       return this.snd.map(fn, ctx, async (snd) => {
         const result = new Pair(fst, snd);
@@ -208,13 +208,13 @@ export class Pair<T> extends Object<T> {
     });
   }
 
-  async evaluate(ctx: Env<T>, rest: Rest<T>): Promise<Object<T>> {
+  async evaluate(ctx: Env<T>, rest: Rest<T>): Promise<Obj<T>> {
     return this.fst.evaluate(ctx, (proc) => {
       return proc.apply(this.snd, ctx, rest);
     });
   }
 
-  async evaluateAll(ctx: Env<T>, rest: Rest<T>): Promise<Object<T>> {
+  async evaluateAll(ctx: Env<T>, rest: Rest<T>): Promise<Obj<T>> {
     return this.fst.evaluate(ctx, (fst) => {
       return this.snd.evaluateAll(ctx, (snd) => {
         const value = new Pair(fst, snd);
@@ -223,7 +223,7 @@ export class Pair<T> extends Object<T> {
     });
   }
 
-  async execute(ctx: Env<T>, rest: Rest<T>): Promise<Object<T>> {
+  async execute(ctx: Env<T>, rest: Rest<T>): Promise<Obj<T>> {
     return this.fst.evaluate(ctx, (fst) => {
       return this.snd.execute(ctx, (snd) => {
         if (snd instanceof Nil) {
@@ -235,7 +235,7 @@ export class Pair<T> extends Object<T> {
     });
   }
 
-  bind(rhs: Object<T>, ctx: Env<T>): void {
+  bind(rhs: Obj<T>, ctx: Env<T>): void {
     if (rhs instanceof Pair) {
       this.fst.bind(rhs.fst, ctx);
       this.snd.bind(rhs.snd, ctx);
@@ -244,8 +244,8 @@ export class Pair<T> extends Object<T> {
     }
   }
 
-  toArray(): Object<T>[] {
-    let xs: Object<T> = this;
+  toArray(): Obj<T>[] {
+    let xs: Obj<T> = this;
     let buffer = [];
     while (xs instanceof Pair) {
       buffer.push(xs.fst);
@@ -259,7 +259,7 @@ export class Pair<T> extends Object<T> {
 
   toString(): string {
     if (this.isList) {
-      let xs: Object<T> = this;
+      let xs: Obj<T> = this;
       let buffer = [];
       while (xs instanceof Pair) {
         buffer.push(`${xs.fst}`);
@@ -274,7 +274,7 @@ export class Pair<T> extends Object<T> {
     return `(${this.fst} . ${this.snd})`;
   }
 
-  equal(rhs: Object<T>): boolean {
+  equal(rhs: Obj<T>): boolean {
     if (rhs instanceof Pair) {
       if (this.fst.equal(rhs.fst)) {
         return this.snd.equal(rhs.snd);
@@ -284,7 +284,7 @@ export class Pair<T> extends Object<T> {
   }
 }
 
-export class Bool<T> extends Object<T> {
+export class Bool<T> extends Obj<T> {
   value: boolean;
 
   constructor(value: boolean) {
@@ -303,7 +303,7 @@ export class Bool<T> extends Object<T> {
     return "#f";
   }
 
-  equal(rhs: Object<T>): boolean {
+  equal(rhs: Obj<T>): boolean {
     if (rhs instanceof Bool) {
       return this.value === rhs.value;
     }
@@ -311,7 +311,7 @@ export class Bool<T> extends Object<T> {
   }
 }
 
-export class Num<T> extends Object<T> {
+export class Num<T> extends Obj<T> {
   value: number;
 
   constructor(value: number) {
@@ -327,7 +327,7 @@ export class Num<T> extends Object<T> {
     return `${this.value}`;
   }
 
-  equal(rhs: Object<T>): boolean {
+  equal(rhs: Obj<T>): boolean {
     if (rhs instanceof Num) {
       const epsilon = 0.001;
       const delta = Math.abs(this.value - rhs.value);
@@ -337,7 +337,7 @@ export class Num<T> extends Object<T> {
   }
 }
 
-export class Str<T> extends Object<T> {
+export class Str<T> extends Obj<T> {
   value: string;
 
   constructor(value: string) {
@@ -357,7 +357,7 @@ export class Str<T> extends Object<T> {
     return `"${this.value}"`;
   }
 
-  equal(rhs: Object<T>): boolean {
+  equal(rhs: Obj<T>): boolean {
     if (rhs instanceof Str) {
       return this.value === rhs.value;
     }
@@ -365,7 +365,7 @@ export class Str<T> extends Object<T> {
   }
 }
 
-export class Sym<T> extends Object<T> {
+export class Sym<T> extends Obj<T> {
   name: string;
 
   constructor(name: string) {
@@ -381,12 +381,12 @@ export class Sym<T> extends Object<T> {
     return this.name;
   }
 
-  evaluate(ctx: Env<T>, rest: Rest<T>): Promise<Object<T>> {
+  evaluate(ctx: Env<T>, rest: Rest<T>): Promise<Obj<T>> {
     const entry = ctx.lookup(this);
     return rest(entry.value);
   }
 
-  bind(rhs: Object<T>, ctx: Env<T>): void {
+  bind(rhs: Obj<T>, ctx: Env<T>): void {
     if (this.name !== "_") {
       ctx.define(this, rhs);
     }
@@ -396,7 +396,7 @@ export class Sym<T> extends Object<T> {
     return this.name;
   }
 
-  equal(rhs: Object<T>): boolean {
+  equal(rhs: Obj<T>): boolean {
     if (rhs instanceof Sym) {
       return this.name === rhs.name;
     }
@@ -404,7 +404,7 @@ export class Sym<T> extends Object<T> {
   }
 }
 
-function nameof<T>(key: string | Object<T>): string {
+function nameof<T>(key: string | Obj<T>): string {
   if (typeof (key) === "string") {
     return key;
   }
@@ -412,10 +412,10 @@ function nameof<T>(key: string | Object<T>): string {
 }
 
 export class Entry<T> {
-  value: Object<T>;
+  value: Obj<T>;
   doc?: string;
 
-  constructor(value: Object<T>, doc?: string) {
+  constructor(value: Obj<T>, doc?: string) {
     this.value = value;
     this.doc = doc;
   }
@@ -428,7 +428,7 @@ export class Entry<T> {
   }
 }
 
-export class Env<T> extends Object<T> {
+export class Env<T> extends Obj<T> {
   frame: Map<string, Entry<T>>;
   parent?: Env<T>;
 
@@ -442,12 +442,12 @@ export class Env<T> extends Object<T> {
     return true;
   }
 
-  apply(args: Object<T>, _ctx: Env<T>, rest: Rest<T>): Promise<Object<T>> {
+  apply(args: Obj<T>, _ctx: Env<T>, rest: Rest<T>): Promise<Obj<T>> {
     const entry = this.lookup(args.fst);
     return rest(entry.value);
   }
 
-  lookup(key: string | Object<T>): Entry<T> {
+  lookup(key: string | Obj<T>): Entry<T> {
     const name = nameof(key);
     if (this.frame.has(name)) {
       return this.frame.get(name)!;
@@ -458,13 +458,13 @@ export class Env<T> extends Object<T> {
     throw `${key} is undefined`;
   }
 
-  define(key: string | Object<T>, rhs: Object<T> | Entry<T>): void {
+  define(key: string | Obj<T>, rhs: Obj<T> | Entry<T>): void {
     const name = nameof(key);
     if (this.frame.has(name)) {
       const entry = this.frame.get(name);
       throw `${key} is already defined as ${rhs}`;
     }
-    if (rhs instanceof Object) {
+    if (rhs instanceof Obj) {
       const entry = new Entry(rhs);
       this.frame.set(name, entry);
     } else {
@@ -472,7 +472,7 @@ export class Env<T> extends Object<T> {
     }
   }
 
-  remove(key: string | Object<T>): void {
+  remove(key: string | Obj<T>): void {
     const name = nameof(key);
     this.frame.delete(name);
   }
@@ -492,17 +492,17 @@ export class Env<T> extends Object<T> {
   }
 }
 
-export class Macro<T> extends Object<T> {
-  head: Object<T>;
-  body: Object<T>;
+export class Macro<T> extends Obj<T> {
+  head: Obj<T>;
+  body: Obj<T>;
   lexical: Env<T>;
-  dynamic: Object<T>;
+  dynamic: Obj<T>;
 
   constructor(
-    head: Object<T>,
-    body: Object<T>,
+    head: Obj<T>,
+    body: Obj<T>,
     lexical: Env<T>,
-    dynamic: Object<T>,
+    dynamic: Obj<T>,
   ) {
     super();
     this.head = head;
@@ -515,7 +515,7 @@ export class Macro<T> extends Object<T> {
     return true;
   }
 
-  async apply(args: Object<T>, ctx: Env<T>, rest: Rest<T>): Promise<Object<T>> {
+  async apply(args: Obj<T>, ctx: Env<T>, rest: Rest<T>): Promise<Obj<T>> {
     let local = new Env(this.lexical);
     try {
       this.head.bind(args, local);
@@ -533,10 +533,10 @@ export class Macro<T> extends Object<T> {
   }
 }
 
-export class Wrap<T> extends Object<T> {
-  body: Object<T>;
+export class Wrap<T> extends Obj<T> {
+  body: Obj<T>;
 
-  constructor(body: Object<T>) {
+  constructor(body: Obj<T>) {
     super();
     this.body = body;
   }
@@ -545,7 +545,7 @@ export class Wrap<T> extends Object<T> {
     return true;
   }
 
-  async apply(args: Object<T>, ctx: Env<T>, rest: Rest<T>): Promise<Object<T>> {
+  async apply(args: Obj<T>, ctx: Env<T>, rest: Rest<T>): Promise<Obj<T>> {
     return args.evaluateAll(ctx, (args) => {
       return this.body.apply(args, ctx, rest);
     });
@@ -557,12 +557,12 @@ export class Wrap<T> extends Object<T> {
 }
 
 export type Fproc<T> = (
-  args: Object<T>,
+  args: Obj<T>,
   ctx: Env<T>,
   rest: Rest<T>,
-) => Promise<Object<T>>;
+) => Promise<Obj<T>>;
 
-export class Proc<T> extends Object<T> {
+export class Proc<T> extends Obj<T> {
   name: string;
   body: Fproc<T>;
 
@@ -576,11 +576,11 @@ export class Proc<T> extends Object<T> {
     return true;
   }
 
-  async apply(args: Object<T>, ctx: Env<T>, rest: Rest<T>): Promise<Object<T>> {
+  async apply(args: Obj<T>, ctx: Env<T>, rest: Rest<T>): Promise<Obj<T>> {
     try {
       return this.body(args, ctx, rest);
     } catch (error) {
-      if (error instanceof Object) {
+      if (error instanceof Obj) {
         throw `${this.name}: ${args}`;
       }
       throw `${error}\nin ${this.name} @ ${args}`;
@@ -592,7 +592,7 @@ export class Proc<T> extends Object<T> {
   }
 }
 
-export class Embed<T> extends Object<T> {
+export class Embed<T> extends Obj<T> {
   body: T;
 
   constructor(body: T) {
@@ -608,32 +608,32 @@ export class Embed<T> extends Object<T> {
     return `${this.body}`;
   }
 
-  equal(rhs: Object<T>): boolean {
+  equal(rhs: Obj<T>): boolean {
     // TODO: `equal` constraint on T
     return false;
   }
 }
 
-export function nil<T>(): Object<T> {
+export function nil<T>(): Obj<T> {
   return new Nil();
 }
 
-export function t<T>(): Object<T> {
+export function t<T>(): Obj<T> {
   return new Bool(true);
 }
 
-export function f<T>(): Object<T> {
+export function f<T>(): Obj<T> {
   return new Bool(false);
 }
 
-export function ignore<T>(): Object<T> {
+export function ignore<T>(): Obj<T> {
   return new Sym("_");
 }
 
 export function list<T>(
-  xs: Object<T>[],
+  xs: Obj<T>[],
   options?: { dot: boolean },
-): Object<T> {
+): Obj<T> {
   options = options || { dot: false };
   let state;
   let start;

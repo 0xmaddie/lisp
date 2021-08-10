@@ -1,4 +1,4 @@
-import * as ob from "./object.ts";
+import * as obj from "./obj.ts";
 
 type Token =
   | { tag: "open" | "close" | "dot" }
@@ -67,10 +67,10 @@ export function tokenize(source: string): Token[] {
   return tokens;
 }
 
-export function read<T>(source: string): ob.Object<T>[] {
-  let build_stack: ob.Object<T>[][] = [];
+export function read<T>(source: string): obj.Obj<T>[] {
+  let build_stack: obj.Obj<T>[][] = [];
   let dot_stack: boolean[] = [];
-  let build: ob.Object<T>[] = [];
+  let build: obj.Obj<T>[] = [];
   let dot = false;
   for (const token of tokenize(source)) {
     switch (token.tag) {
@@ -85,7 +85,7 @@ export function read<T>(source: string): ob.Object<T>[] {
         if (build_stack.length === 0) {
           throw `unbalanced parentheses`;
         }
-        const value = ob.list<T>(build, { dot });
+        const value = obj.list<T>(build, { dot });
         build = build_stack.pop()!;
         build.push(value);
         dot = dot_stack.pop()!;
@@ -100,29 +100,29 @@ export function read<T>(source: string): ob.Object<T>[] {
         break;
       }
       case "number": {
-        const value = new ob.Num<T>(token.value);
+        const value = new obj.Num<T>(token.value);
         build.push(value);
         break;
       }
       case "string": {
-        const value = new ob.Str<T>(token.value);
+        const value = new obj.Str<T>(token.value);
         build.push(value);
         break;
       }
       case "symbol": {
-        const value = new ob.Sym<T>(token.name);
+        const value = new obj.Sym<T>(token.name);
         build.push(value);
         break;
       }
       case "constant": {
         switch (token.name) {
           case "t": {
-            const value = new ob.Bool<T>(true);
+            const value = new obj.Bool<T>(true);
             build.push(value);
             break;
           }
           case "f": {
-            const value = new ob.Bool<T>(false);
+            const value = new obj.Bool<T>(false);
             build.push(value);
             break;
           }
