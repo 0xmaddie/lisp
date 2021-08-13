@@ -75,51 +75,31 @@ Deno.test({
 });
 
 Deno.test({
-  name: "shift/reset sanity",
-  async fn() {
+  name: "basic equality checks",
+  async fn(): Promise<void> {
     let ctx = lisp.initial();
-    // https://en.wikipedia.org/wiki/Delimited_continuation
-    //
-    // One proposal[5] offers two control operators: shift and
-    // reset. The reset operator sets the limit for the continuation
-    // while the shift operator captures or reifies the current
-    // continuation up to the innermost enclosing reset. For example,
-    // consider the following snippet in Scheme:
-    //
-    //     (* 2 (reset (+ 1 (shift k (k 5)))))
-    //
-    // The reset delimits the continuation that shift captures (named
-    // by k in this example). When this snippet is executed, the use
-    // of shift will bind k to the continuation (+ 1 []) where []
-    // represents the part of the computation that is to be filled
-    // with a value. This continuation directly corresponds to the
-    // code that surrounds the shift up to the reset. Because the body
-    // of shift (i.e., (k 5)) immediately invokes the continuation,
-    // this code is equivalent to the following:
-    //
-    // (* 2 (+ 1 5))
-    //
-    const code = `(* 2 (reset (+ 1 (shift (wrap (macro (k) e (k 5)))))))`;
-    const body = lisp.read(code);
-    assert(body.length === 1);
-    const result = await body[0].evaluate(ctx, (x) => Promise.resolve(x));
-    assert(result instanceof lisp.Num);
-    assert(result.value === 12);
-  },
-});
-
-Deno.test({
-  name: "dotted lists",
-  fn(): void {
-    const code = "(1 . 2)";
-    const body0 = lisp.read(code);
-    const print = `${body0[0]}`;
-    const body1 = lisp.read(print);
-    const expected = new lisp.Pair(
-      new lisp.Num(1),
-      new lisp.Num(2),
-    );
-    assertEquals(body0, body1);
-    assertEquals(body0[0], expected);
+    const pairs = [
+      ["(append (list 1 2) (list 3 4))", "(list 1 2 3 4)"],
+      ["(+ 1 2 3 4)", "10"],
+      ["(* 1 2 3 4)", "24"],
+      ["(or #f #f)", "#f"],
+      ["(or #f #t)", "#t"],
+      ["(and #f #f)", "#f"],
+      ["(and #f #t)", "#f"],
+      ["(and #t #t)", "#t"],
+      ["(* 2 (reset (+ 1 (shift (wrap (macro (k) e (k 5)))))))", "12"],
+      ["(* 2 (reset (+ 1 (shift (fn (k) (k 5))))))", "12"],
+      ["((macro (x) _ x) (1 . 2))", "(pair 1 2)"],
+    ];
+    console.log();
+    for (const [source, target] of pairs) {
+      const actual = await lisp.evaluate(source, ctx);
+      const expected = await lisp.evaluate(target, ctx);
+      assert(
+        actual.equal(expected),
+        `expected ${source} => ${expected} but got ${source} => ${actual}`,
+      );
+      console.log(`${source} => ${actual}`);
+    }
   },
 });

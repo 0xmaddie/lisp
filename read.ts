@@ -138,3 +138,16 @@ export function read<T>(source: string): obj.Obj<T>[] {
   }
   return build;
 }
+
+export async function evaluate<T>(
+  src: string,
+  ctx: obj.Env<T>,
+): Promise<obj.Obj<T>> {
+  let source = read<T>(src);
+  let target = [];
+  for (let obj of source) {
+    const result = await obj.evaluate(ctx, (x) => Promise.resolve(x));
+    target.push(result);
+  }
+  return target.pop()!;
+}
