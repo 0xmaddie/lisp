@@ -430,25 +430,6 @@ function proc_inv<T>(
   return rest(result);
 }
 
-function proc_print<T>(
-  args: lisp.Obj<T>,
-  _ctx: lisp.Env<T>,
-  rest: lisp.Rest<T>,
-): Promise<lisp.Obj<T>> {
-  let buffer = [];
-  while (args.isNotEmpty) {
-    if (args.fst instanceof lisp.Str) {
-      buffer.push(args.fst.asStr);
-    } else {
-      buffer.push(`${args.fst}`);
-    }
-    args = args.snd;
-  }
-  const data = buffer.join(" ");
-  console.log(data);
-  return rest(lisp.nil());
-}
-
 function proc_empty_env<T>(
   args: lisp.Obj<T>,
   _ctx: lisp.Env<T>,
@@ -496,6 +477,27 @@ function proc_to_str<T>(
   return rest(result);
 }
 
+async function proc_read<T>(
+  args: lisp.Obj<T>,
+  _ctx: lisp.Env<T>,
+  rest: lisp.Rest<T>,
+): Promise<lisp.Obj<T>> {
+  const port = args.fst.asPort;
+  const result = await port.read();
+  return rest(result);
+}
+
+async function proc_write<T>(
+  args: lisp.Obj<T>,
+  _ctx: lisp.Env<T>,
+  rest: lisp.Rest<T>,
+): Promise<lisp.Obj<T>> {
+  const port = args.fst.asPort;
+  await port.write(args.snd);
+  const result = lisp.nil<T>();
+  return rest(result);
+}
+
 export default function initial<T>(): lisp.Env<T> {
   let env = new lisp.Env<T>();
 
@@ -517,6 +519,13 @@ export default function initial<T>(): lisp.Env<T> {
       x instanceof lisp.Wrap ||
       x instanceof lisp.Proc
     );
+  });
+  const proc_is_port = mk_type<T>((x) => x instanceof lisp.Port);
+  const proc_is_read_port = mk_type<T>((x) => {
+    return x instanceof lisp.Port && x.canRead;
+  });
+  const proc_is_write_port = mk_type<T>((x) => {
+    return x instanceof lisp.Port && x.canWrite;
   });
 
   // Pairs and Lists
@@ -600,9 +609,33 @@ export default function initial<T>(): lisp.Env<T> {
   env.defn("=", proc_is_equal);
 
   // Input/Output
-  env.defn("print", proc_print);
   env.defn("assert", proc_assert);
   env.defn("->str", proc_to_str);
+
+  env.defn("port?", proc_is_port);
+  env.defn("port/read?", proc_is_read_port);
+  env.defn("port/write?", proc_is_write_port);
+  env.defn("port/read", proc_read);
+  env.defn("port/write", proc_write);
+
+  env.define(
+    "stdout",
+    new lisp.Port(
+      "stdout",
+      undefined,
+      async (args) => {
+        const text = args.toArray().map((x) => {
+          // I don't want strings to print with quotes.
+          if (x instanceof lisp.Str) {
+            return x.value;
+          } else {
+            return `${x}`;
+          }
+        }).join(" ");
+        console.log(text);
+      },
+    ),
+  );
 
   return env;
 }

@@ -43,6 +43,10 @@ export abstract class Obj<T> {
     throw `${this} is not a sym`;
   }
 
+  get asPort(): Port<T> {
+    throw `${this} is not a port`;
+  }
+
   get asEmbed(): T {
     throw `${this} is not an embedded value`;
   }
@@ -81,6 +85,14 @@ export abstract class Obj<T> {
 
   bind(args: Obj<T>, _ctx: Env<T>): void {
     throw `${this} cannot bind ${args}`;
+  }
+
+  read(): Promise<Obj<T>> {
+    throw `${this} is not a read port`;
+  }
+
+  write(obj: Obj<T>): Promise<void> {
+    throw `${this} is not a write port`;
   }
 
   toArray(): Obj<T>[] {
@@ -611,6 +623,60 @@ export class Embed<T> extends Obj<T> {
   equal(rhs: Obj<T>): boolean {
     // TODO: `equal` constraint on T
     return false;
+  }
+}
+
+export type Fread<T> = () => Promise<Obj<T>>;
+export type Fwrite<T> = (obj: Obj<T>) => Promise<void>;
+
+export class Port<T> extends Obj<T> {
+  name: string;
+  _read?: Fread<T>;
+  _write?: Fwrite<T>;
+
+  constructor(
+    name: string,
+    read?: Fread<T>,
+    write?: Fwrite<T>,
+  ) {
+    super();
+    this.name = name;
+    this._read = read;
+    this._write = write;
+  }
+
+  get asPort(): Port<T> {
+    return this;
+  }
+
+  get canRead(): boolean {
+    return this.read !== undefined;
+  }
+
+  get canWrite(): boolean {
+    return this.write !== undefined;
+  }
+
+  read(): Promise<Obj<T>> {
+    if (this._read) {
+      return this._read();
+    }
+    throw `${this} is not a readable port`;
+  }
+
+  write(obj: Obj<T>): Promise<void> {
+    if (this._write) {
+      return this._write(obj);
+    }
+    throw `${this} is not a writable port`;
+  }
+
+  toString(): string {
+    return `#<port:${this.name}>`;
+  }
+
+  equal(rhs: Obj<T>): boolean {
+    return this === rhs;
   }
 }
 
