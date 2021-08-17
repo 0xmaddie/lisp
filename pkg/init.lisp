@@ -1,3 +1,3 @@
-(write stdout (port? stdout))
-(write stdout (port/write? stdout))
-(write stdout "Hello, world.")
+(port/write stdout (port? stdout))
+(port/write stdout (port/write? stdout))
+(port/write stdout "Hello, world.")
