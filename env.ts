@@ -498,7 +498,7 @@ async function proc_write<T>(
   return rest(result);
 }
 
-export default function initial<T>(): lisp.Env<T> {
+export function initial<T>(): lisp.Env<T> {
   let env = new lisp.Env<T>();
 
   const proc_is_bool = mk_type<T>((x) => x instanceof lisp.Bool);
