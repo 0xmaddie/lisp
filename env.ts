@@ -307,7 +307,7 @@ function proc_list_star<T>(
   if (args.isEmpty) {
     return rest(lisp.nil());
   }
-  let items = args.toArray();
+  let items = args.asArray;
   let state = items.pop()!;
   for (const child of reverse(items)) {
     state = new lisp.Pair(child, state);
@@ -354,7 +354,7 @@ function proc_append<T>(
   _ctx: lisp.Env<T>,
   rest: lisp.Rest<T>,
 ): Promise<lisp.Obj<T>> {
-  let items = args.toArray();
+  let items = args.asArray;
   let state = lisp.nil<T>();
   for (const item of reverse(items)) {
     state = item.append(state);
@@ -498,6 +498,9 @@ async function proc_write<T>(
   return rest(result);
 }
 
+/**
+ * The initial environment for Lisp programs.
+ */
 export function initial<T>(): lisp.Env<T> {
   let env = new lisp.Env<T>();
 
@@ -624,7 +627,7 @@ export function initial<T>(): lisp.Env<T> {
       "stdout",
       undefined,
       async (args) => {
-        const text = args.toArray().map((x) => {
+        const text = args.asArray.map((x) => {
           // I don't want strings to print with quotes.
           if (x instanceof lisp.Str) {
             return x.value;

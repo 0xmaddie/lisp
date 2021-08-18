@@ -7,6 +7,9 @@ type Token =
   | { tag: "constant"; name: string }
   | { tag: "number"; value: number };
 
+/**
+ * Return an array of tokens contained within the string provided.
+ */
 export function tokenize(source: string): Token[] {
   let tokens: Token[] = [];
   let index = 0;
@@ -67,6 +70,9 @@ export function tokenize(source: string): Token[] {
   return tokens;
 }
 
+/**
+ * Returns the Lisp objects denoted by the string provided.
+ */
 export function read<T>(source: string): obj.Obj<T>[] {
   let build_stack: obj.Obj<T>[][] = [];
   let dot_stack: boolean[] = [];
@@ -139,6 +145,10 @@ export function read<T>(source: string): obj.Obj<T>[] {
   return build;
 }
 
+/**
+ * Returns the last Lisp object obtained after reading and evaluating
+ * the string provided.
+ */
 export async function evaluate<T>(
   src: string,
   ctx: obj.Env<T>,

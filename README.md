@@ -4,21 +4,21 @@ A Lisp dialect based on John Shutt's vau calculus.
 
 - [x] First class macros
 
-These are actually fexprs, but I think I'm going to use the word
-"macros" because people actually know what macros are, while no one
-knows what a fexpr is. Macro is close enough in meaning to tweak,
-which seems better than starting from scratch with fexpr.
+These are actually fexprs, but I think I'm going to use the word "macros"
+because people actually know what macros are, while no one knows what a fexpr
+is. Macro is close enough in meaning to tweak, which seems better than starting
+from scratch with fexpr.
 
 - [x] Delimited continuations with shift/reset
 
-This is important for implementing other languages; delimited
-continuations are like a "top type for effects"
+This is important for implementing other languages; delimited continuations are
+like a "top type for effects"
 
 - [ ] Conditions and restarts
 
-I think I can implement this with exceptions. Basically whenever you
-throw an exception, attach some continuations to "restart" and try
-again with a more sensible value.
+I think I can implement this with exceptions. Basically whenever you throw an
+exception, attach some continuations to "restart" and try again with a more
+sensible value.
 
 - [ ] Emacs mode/language server
 

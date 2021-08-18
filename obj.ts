@@ -1,112 +1,213 @@
 import { assert } from "https://deno.land/std@0.97.0/testing/asserts.ts";
 
+/**
+ * The type of continuations during a Lisp computation.
+ */
 export type Rest<T> = (value: Obj<T>) => Promise<Obj<T>>;
 
+/**
+ * A Lisp object. This Lisp is written in TypeScript, but this object
+ * has a "dynamically typed" API that supports every possible Lisp
+ * operation and throws if the receiver has the wrong type.
+ */
 export abstract class Obj<T> {
+  /**
+   * Returns true if this object is either nil or a pair.
+   */
   get isList(): boolean {
     return false;
   }
 
+  /**
+   * Returns true if this object can bind an object within an
+   * environment, e.g. if it's a symbol or a pair of bindable objects.
+   */
   get canBind(): boolean {
     return false;
   }
 
+  /**
+   * Returns true if this object can be applied.
+   */
   get canApply(): boolean {
     return false;
   }
 
+  /**
+   * Returns the first element of a pair.
+   */
   get fst(): Obj<T> {
     throw `${this} is not a pair`;
   }
 
+  /**
+   * Returns the second element of a pair.
+   */
   get snd(): Obj<T> {
     throw `${this} is not a pair`;
   }
 
+  /**
+   * Returns the length of a collection.
+   */
   get len(): number {
     throw `${this} is not a list`;
   }
 
+  /**
+   * Returns this object's boolean value.
+   */
   get asBool(): boolean {
     throw `${this} is not a bool`;
   }
 
+  /**
+   * Returns this object's number value.
+   */
   get asNum(): number {
     throw `${this} is not a num`;
   }
 
+  /**
+   * Returns this object's string value.
+   */
   get asStr(): string {
     throw `${this} is not a str`;
   }
 
+  /**
+   * Returns this object's symbol value.
+   */
   get asSym(): string {
     throw `${this} is not a sym`;
   }
 
+  /**
+   * Returns this object's port value.
+   */
   get asPort(): Port<T> {
     throw `${this} is not a port`;
   }
 
+  /**
+   * Returns this object's embedded value.
+   */
   get asEmbed(): T {
     throw `${this} is not an embedded value`;
   }
 
+  /**
+   * If the receiver is a list, return the elements as a JavaScript
+   * array.
+   */
+  get asArray(): Obj<T>[] {
+    throw `${this} is not a list`;
+  }
+
+  /**
+   * Returns true if this object is nil.
+   */
   get isEmpty(): boolean {
     throw `${this} is not a list`;
   }
 
+  /**
+   * Returns true if this object is a non-empty list.
+   */
   get isNotEmpty(): boolean {
     throw `${this} is not a list`;
   }
 
+  /**
+   * If the receiver and rhs are lists, concatenate them together.
+   */
   append(_rhs: Obj<T>): Obj<T> {
     throw `${this} is not a list`;
   }
 
+  /**
+   * If the receiver is a list, apply fn to each element and return
+   * the result as a list.
+   */
   map(_fn: Obj<T>, _ctx: Env<T>, _rest: Rest<T>): Promise<Obj<T>> {
     throw `${this} is not a list`;
   }
 
+  /**
+   * Evaluate the receiver in the environment provided.
+   */
   evaluate(_ctx: Env<T>, rest: Rest<T>): Promise<Obj<T>> {
     return rest(this);
   }
 
+  /**
+   * If the receiver is a list, evaluate each element in the
+   * environment provided, and return the result as a list.
+   */
   evaluateAll(_ctx: Env<T>, _rest: Rest<T>): Promise<Obj<T>> {
     throw `${this} is not a list`;
   }
 
+  /**
+   * If the receiver is a list, evaluate each element in the
+   * environment provided, and return the last element. This is used
+   * to evaluate an object for its effects.
+   */
   execute(_ctx: Env<T>, _rest: Rest<T>): Promise<Obj<T>> {
     throw `${this} is not a list`;
   }
 
+  /**
+   * If the receiver is a procedure, apply to the arguments and
+   * environment provided.
+   */
   apply(_args: Obj<T>, _ctx: Env<T>, _rest: Rest<T>): Promise<Obj<T>> {
     throw `${this} is not a procedure`;
   }
 
+  /**
+   * Use the receiver to bind the arguments and environment provided.
+   */
   bind(args: Obj<T>, _ctx: Env<T>): void {
     throw `${this} cannot bind ${args}`;
   }
 
+  /**
+   * If the receiver is a read port, read an object.
+   */
   read(): Promise<Obj<T>> {
     throw `${this} is not a read port`;
   }
 
+  /**
+   * If the receiver is a write port, write an object.
+   */
   write(obj: Obj<T>): Promise<void> {
     throw `${this} is not a write port`;
   }
 
-  toArray(): Obj<T>[] {
-    throw `${this} is not a list`;
-  }
-
+  /**
+   * Returns true if the receiver is equivalent to the rhs. If the
+   * receiver is mutable, this uses object identity, i.e. it will
+   * return true only if the rhs points to the same object.
+   */
   equal(rhs: Obj<T>): boolean {
     return this === rhs;
   }
 }
 
+/**
+ * Nil, written (), is the empty list. Used with Pair to construct
+ * lists. It's often returned from procedures that have "no value",
+ * i.e. are only called for their effects.
+ */
 export class Nil<T> extends Obj<T> {
   constructor() {
     super();
+  }
+
+  get asArray(): Obj<T>[] {
+    return [];
   }
 
   get isList(): boolean {
@@ -151,10 +252,6 @@ export class Nil<T> extends Obj<T> {
     }
   }
 
-  toArray(): Obj<T>[] {
-    return [];
-  }
-
   toString(): string {
     return "()";
   }
@@ -164,6 +261,9 @@ export class Nil<T> extends Obj<T> {
   }
 }
 
+/**
+ * A pair of objects. Used with Nil to construct lists.
+ */
 export class Pair<T> extends Obj<T> {
   _fst: Obj<T>;
   _snd: Obj<T>;
@@ -188,6 +288,19 @@ export class Pair<T> extends Obj<T> {
 
   get snd(): Obj<T> {
     return this._snd;
+  }
+
+  get asArray(): Obj<T>[] {
+    let xs: Obj<T> = this;
+    let buffer = [];
+    while (xs instanceof Pair) {
+      buffer.push(xs.fst);
+      xs = xs.snd;
+    }
+    if (xs instanceof Nil) {
+      return buffer;
+    }
+    throw `asArray on invalid list: ${this}`;
   }
 
   get len(): number {
@@ -256,19 +369,6 @@ export class Pair<T> extends Obj<T> {
     }
   }
 
-  toArray(): Obj<T>[] {
-    let xs: Obj<T> = this;
-    let buffer = [];
-    while (xs instanceof Pair) {
-      buffer.push(xs.fst);
-      xs = xs.snd;
-    }
-    if (xs instanceof Nil) {
-      return buffer;
-    }
-    throw `toArray on invalid list: ${this}`;
-  }
-
   toString(): string {
     if (this.isList) {
       let xs: Obj<T> = this;
@@ -296,6 +396,9 @@ export class Pair<T> extends Obj<T> {
   }
 }
 
+/**
+ *  A boolean value, #t (true) or #f (false).
+ */
 export class Bool<T> extends Obj<T> {
   value: boolean;
 
@@ -323,6 +426,9 @@ export class Bool<T> extends Obj<T> {
   }
 }
 
+/**
+ * A floating point number.
+ */
 export class Num<T> extends Obj<T> {
   value: number;
 
@@ -349,6 +455,9 @@ export class Num<T> extends Obj<T> {
   }
 }
 
+/**
+ * An immutable string.
+ */
 export class Str<T> extends Obj<T> {
   value: string;
 
@@ -377,6 +486,9 @@ export class Str<T> extends Obj<T> {
   }
 }
 
+/**
+ * A symbol. Can be bound to another object within an environment.
+ */
 export class Sym<T> extends Obj<T> {
   name: string;
 
@@ -423,6 +535,10 @@ function nameof<T>(key: string | Obj<T>): string {
   return key.asSym;
 }
 
+/**
+ * An entry within an environment. Stores a documentation string along
+ * with the object.
+ */
 export class Entry<T> {
   value: Obj<T>;
   doc?: string;
@@ -440,6 +556,9 @@ export class Entry<T> {
   }
 }
 
+/**
+ * An environment mapping symbols to objects.
+ */
 export class Env<T> extends Obj<T> {
   frame: Map<string, Entry<T>>;
   parent?: Env<T>;
@@ -459,6 +578,9 @@ export class Env<T> extends Obj<T> {
     return rest(entry.value);
   }
 
+  /**
+   * Return the entry associated with an identifier.
+   */
   lookup(key: string | Obj<T>): Entry<T> {
     const name = nameof(key);
     if (this.frame.has(name)) {
@@ -470,6 +592,9 @@ export class Env<T> extends Obj<T> {
     throw `${key} is undefined`;
   }
 
+  /**
+   * Associate the symbol and object provided.
+   */
   define(key: string | Obj<T>, rhs: Obj<T> | Entry<T>): void {
     const name = nameof(key);
     if (this.frame.has(name)) {
@@ -484,16 +609,25 @@ export class Env<T> extends Obj<T> {
     }
   }
 
+  /**
+   * Remove the entry associated with an identifier.
+   */
   remove(key: string | Obj<T>): void {
     const name = nameof(key);
     this.frame.delete(name);
   }
 
+  /**
+   * Define a fexpr with the name and body provided.
+   */
   defmacro(name: string, body: Fproc<T>): void {
     const value = new Proc(name, body);
     this.define(name, value);
   }
 
+  /**
+   * Define a procedure with the name and body provided.
+   */
   defn(name: string, body: Fproc<T>): void {
     const value = new Wrap(new Proc(name, body));
     this.define(name, value);
@@ -504,6 +638,10 @@ export class Env<T> extends Obj<T> {
   }
 }
 
+/**
+ *  A fexpr, or a lexically scoped procedure that receives its
+ * arguments unevaluated, along with the dynamic environment.
+ */
 export class Macro<T> extends Obj<T> {
   head: Obj<T>;
   body: Obj<T>;
@@ -545,6 +683,9 @@ export class Macro<T> extends Obj<T> {
   }
 }
 
+/**
+ * A wrapper that induces argument evaluation on another procedure.
+ */
 export class Wrap<T> extends Obj<T> {
   body: Obj<T>;
 
@@ -568,12 +709,19 @@ export class Wrap<T> extends Obj<T> {
   }
 }
 
+/**
+ * The type of procedure bodies.
+ */
 export type Fproc<T> = (
   args: Obj<T>,
   ctx: Env<T>,
   rest: Rest<T>,
 ) => Promise<Obj<T>>;
 
+/**
+ * A procedure whose body is a JavaScript function. Receives its
+ * arguments unevaluated; use Wrap in order to induce evaluation.
+ */
 export class Proc<T> extends Obj<T> {
   name: string;
   body: Fproc<T>;
@@ -604,6 +752,9 @@ export class Proc<T> extends Obj<T> {
   }
 }
 
+/**
+ * An embedded value of type T.
+ */
 export class Embed<T> extends Obj<T> {
   body: T;
 
@@ -626,9 +777,21 @@ export class Embed<T> extends Obj<T> {
   }
 }
 
+/**
+ * A JavaScript function used to read values from a read port.
+ */
 export type Fread<T> = () => Promise<Obj<T>>;
+
+/**
+ * A JavaScript function used to write values to a write port.
+ */
 export type Fwrite<T> = (obj: Obj<T>) => Promise<void>;
 
+/**
+ * Ports represent input and output devices. Lisp can read objects
+ * from an input port, or write objects to an output port. Some ports
+ * support both interfaces.
+ */
 export class Port<T> extends Obj<T> {
   name: string;
   _read?: Fread<T>;
@@ -680,22 +843,40 @@ export class Port<T> extends Obj<T> {
   }
 }
 
+/**
+ * The empty list.
+ */
 export function nil<T>(): Obj<T> {
   return new Nil();
 }
 
+/**
+ * The true boolean value.
+ */
 export function t<T>(): Obj<T> {
   return new Bool(true);
 }
 
+/**
+ * The false boolean value.
+ */
 export function f<T>(): Obj<T> {
   return new Bool(false);
 }
 
+/**
+ * The symbol `_` will not bind an object within an environment.
+ */
 export function ignore<T>(): Obj<T> {
   return new Sym("_");
 }
 
+/**
+ * Returns a Lisp list of the objects provided. If the `dot` option is
+ * true, the last element of the array is used as the last element of
+ * the list, rather than nil, and the result is a list only if the
+ * last element is a list.
+ */
 export function list<T>(
   xs: Obj<T>[],
   options?: { dot: boolean },
