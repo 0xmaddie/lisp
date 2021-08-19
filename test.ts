@@ -91,7 +91,6 @@ Deno.test({
       ["(* 2 (reset (+ 1 (shift (fn (k) (k 5))))))", "12"],
       ["((macro (x) _ x) (1 . 2))", "(pair 1 2)"],
     ];
-    console.log();
     for (const [source, target] of pairs) {
       const actual = await lisp.evaluate(source, ctx);
       const expected = await lisp.evaluate(target, ctx);
@@ -99,7 +98,6 @@ Deno.test({
         actual.equal(expected),
         `expected ${source} => ${expected} but got ${source} => ${actual}`,
       );
-      console.log(`${source} => ${actual}`);
     }
   },
 });

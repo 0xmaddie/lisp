@@ -3,7 +3,7 @@ import { assert } from "https://deno.land/std@0.97.0/testing/asserts.ts";
 /**
  * The type of continuations during a Lisp computation.
  */
-export type Rest<T> = (value: Obj<T>) => Promise<Obj<T>>;
+export type Act<T> = (value: Obj<T>) => Promise<Obj<T>>;
 
 /**
  * A Lisp object. This Lisp is written in TypeScript, but this object
@@ -105,6 +105,20 @@ export abstract class Obj<T> {
   }
 
   /**
+   * If the receiver is an environment, return it.
+   */
+  get asEnv(): Env<T> {
+    throw `${this} is not an environment`;
+  }
+
+  /**
+   * If the receiver is a top level environment, return it.
+   */
+  get asRoot(): Env<T> {
+    throw `${this} is not an environment`;
+  }
+
+  /**
    * Returns true if this object is nil.
    */
   get isEmpty(): boolean {
@@ -129,22 +143,22 @@ export abstract class Obj<T> {
    * If the receiver is a list, apply fn to each element and return
    * the result as a list.
    */
-  map(_fn: Obj<T>, _ctx: Env<T>, _rest: Rest<T>): Promise<Obj<T>> {
+  map(_fn: Obj<T>, _ctx: Env<T>, _act: Act<T>): Promise<Obj<T>> {
     throw `${this} is not a list`;
   }
 
   /**
    * Evaluate the receiver in the environment provided.
    */
-  evaluate(_ctx: Env<T>, rest: Rest<T>): Promise<Obj<T>> {
-    return rest(this);
+  evaluate(_ctx: Env<T>, act: Act<T>): Promise<Obj<T>> {
+    return act(this);
   }
 
   /**
    * If the receiver is a list, evaluate each element in the
    * environment provided, and return the result as a list.
    */
-  evaluateAll(_ctx: Env<T>, _rest: Rest<T>): Promise<Obj<T>> {
+  evaluateAll(_ctx: Env<T>, _act: Act<T>): Promise<Obj<T>> {
     throw `${this} is not a list`;
   }
 
@@ -153,7 +167,7 @@ export abstract class Obj<T> {
    * environment provided, and return the last element. This is used
    * to evaluate an object for its effects.
    */
-  execute(_ctx: Env<T>, _rest: Rest<T>): Promise<Obj<T>> {
+  execute(_ctx: Env<T>, _act: Act<T>): Promise<Obj<T>> {
     throw `${this} is not a list`;
   }
 
@@ -161,15 +175,15 @@ export abstract class Obj<T> {
    * If the receiver is a procedure, apply to the arguments and
    * environment provided.
    */
-  apply(_args: Obj<T>, _ctx: Env<T>, _rest: Rest<T>): Promise<Obj<T>> {
+  apply(_arg: Obj<T>, _ctx: Env<T>, _act: Act<T>): Promise<Obj<T>> {
     throw `${this} is not a procedure`;
   }
 
   /**
    * Use the receiver to bind the arguments and environment provided.
    */
-  bind(args: Obj<T>, _ctx: Env<T>): void {
-    throw `${this} cannot bind ${args}`;
+  bind(arg: Obj<T>, _ctx: Env<T>): void {
+    throw `${this} cannot bind ${arg}`;
   }
 
   /**
@@ -234,16 +248,16 @@ export class Nil<T> extends Obj<T> {
     return rhs;
   }
 
-  async map(_fn: Obj<T>, _ctx: Env<T>, rest: Rest<T>): Promise<Obj<T>> {
-    return rest(this);
+  async map(_fn: Obj<T>, _ctx: Env<T>, act: Act<T>): Promise<Obj<T>> {
+    return act(this);
   }
 
-  evaluateAll(_ctx: Env<T>, rest: Rest<T>): Promise<Obj<T>> {
-    return rest(this);
+  evaluateAll(_ctx: Env<T>, act: Act<T>): Promise<Obj<T>> {
+    return act(this);
   }
 
-  execute(_ctx: Env<T>, rest: Rest<T>): Promise<Obj<T>> {
-    return rest(this);
+  execute(_ctx: Env<T>, act: Act<T>): Promise<Obj<T>> {
+    return act(this);
   }
 
   bind(rhs: Obj<T>, _ctx: Env<T>): void {
@@ -323,38 +337,38 @@ export class Pair<T> extends Obj<T> {
   async map(
     fn: Obj<T>,
     ctx: Env<T>,
-    rest: Rest<T>,
+    act: Act<T>,
   ): Promise<Obj<T>> {
     return fn.apply(list([this.fst]), ctx, async (fst) => {
       return this.snd.map(fn, ctx, async (snd) => {
         const result = new Pair(fst, snd);
-        return rest(result);
+        return act(result);
       });
     });
   }
 
-  async evaluate(ctx: Env<T>, rest: Rest<T>): Promise<Obj<T>> {
+  async evaluate(ctx: Env<T>, act: Act<T>): Promise<Obj<T>> {
     return this.fst.evaluate(ctx, (proc) => {
-      return proc.apply(this.snd, ctx, rest);
+      return proc.apply(this.snd, ctx, act);
     });
   }
 
-  async evaluateAll(ctx: Env<T>, rest: Rest<T>): Promise<Obj<T>> {
+  async evaluateAll(ctx: Env<T>, act: Act<T>): Promise<Obj<T>> {
     return this.fst.evaluate(ctx, (fst) => {
       return this.snd.evaluateAll(ctx, (snd) => {
         const value = new Pair(fst, snd);
-        return rest(value);
+        return act(value);
       });
     });
   }
 
-  async execute(ctx: Env<T>, rest: Rest<T>): Promise<Obj<T>> {
+  async execute(ctx: Env<T>, act: Act<T>): Promise<Obj<T>> {
     return this.fst.evaluate(ctx, (fst) => {
       return this.snd.execute(ctx, (snd) => {
         if (snd instanceof Nil) {
-          return rest(fst);
+          return act(fst);
         } else {
-          return rest(snd);
+          return act(snd);
         }
       });
     });
@@ -505,9 +519,9 @@ export class Sym<T> extends Obj<T> {
     return this.name;
   }
 
-  evaluate(ctx: Env<T>, rest: Rest<T>): Promise<Obj<T>> {
+  evaluate(ctx: Env<T>, act: Act<T>): Promise<Obj<T>> {
     const entry = ctx.lookup(this);
-    return rest(entry.value);
+    return act(entry.value);
   }
 
   bind(rhs: Obj<T>, ctx: Env<T>): void {
@@ -573,9 +587,21 @@ export class Env<T> extends Obj<T> {
     return true;
   }
 
-  apply(args: Obj<T>, _ctx: Env<T>, rest: Rest<T>): Promise<Obj<T>> {
-    const entry = this.lookup(args.fst);
-    return rest(entry.value);
+  get asEnv(): Env<T> {
+    return this;
+  }
+
+  get asRoot(): Env<T> {
+    if (this.parent !== undefined) {
+      throw `${this} is not the root environment`;
+    }
+    return this;
+  }
+
+  apply(arg: Obj<T>, _ctx: Env<T>, act: Act<T>): Promise<Obj<T>> {
+    const ident = arg.fst;
+    const entry = this.lookup(ident);
+    return act(entry.value);
   }
 
   /**
@@ -665,15 +691,15 @@ export class Macro<T> extends Obj<T> {
     return true;
   }
 
-  async apply(args: Obj<T>, ctx: Env<T>, rest: Rest<T>): Promise<Obj<T>> {
+  async apply(arg: Obj<T>, ctx: Env<T>, act: Act<T>): Promise<Obj<T>> {
     let local = new Env(this.lexical);
     try {
-      this.head.bind(args, local);
+      this.head.bind(arg, local);
       this.dynamic.bind(ctx, local);
-      return this.body.execute(local, rest);
+      return this.body.execute(local, act);
     } catch (error) {
       const lhs = `${this.head} ${this.dynamic}`;
-      const rhs = `${args} ${ctx}`;
+      const rhs = `${arg} ${ctx}`;
       throw `${error} @ macro: ${lhs} ${rhs}`;
     }
   }
@@ -698,9 +724,9 @@ export class Wrap<T> extends Obj<T> {
     return true;
   }
 
-  async apply(args: Obj<T>, ctx: Env<T>, rest: Rest<T>): Promise<Obj<T>> {
-    return args.evaluateAll(ctx, (args) => {
-      return this.body.apply(args, ctx, rest);
+  async apply(arg: Obj<T>, ctx: Env<T>, act: Act<T>): Promise<Obj<T>> {
+    return arg.evaluateAll(ctx, (arg) => {
+      return this.body.apply(arg, ctx, act);
     });
   }
 
@@ -713,9 +739,9 @@ export class Wrap<T> extends Obj<T> {
  * The type of procedure bodies.
  */
 export type Fproc<T> = (
-  args: Obj<T>,
+  arg: Obj<T>,
   ctx: Env<T>,
-  rest: Rest<T>,
+  act: Act<T>,
 ) => Promise<Obj<T>>;
 
 /**
@@ -736,14 +762,14 @@ export class Proc<T> extends Obj<T> {
     return true;
   }
 
-  async apply(args: Obj<T>, ctx: Env<T>, rest: Rest<T>): Promise<Obj<T>> {
+  async apply(arg: Obj<T>, ctx: Env<T>, act: Act<T>): Promise<Obj<T>> {
     try {
-      return this.body(args, ctx, rest);
+      return this.body(arg, ctx, act);
     } catch (error) {
       if (error instanceof Obj) {
-        throw `${this.name}: ${args}`;
+        throw `${this.name}: ${arg}`;
       }
-      throw `${error}\nin ${this.name} @ ${args}`;
+      throw `${error}\nin ${this.name} @ ${arg}`;
     }
   }
 
