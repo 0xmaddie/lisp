@@ -624,8 +624,8 @@ export class Env<T> extends Obj<T> {
   define(key: string | Obj<T>, rhs: Obj<T> | Entry<T>): void {
     const name = nameof(key);
     if (this.frame.has(name)) {
-      const entry = this.frame.get(name);
-      throw `${key} is already defined as ${rhs}`;
+      const entry = this.frame.get(name)!;
+      throw `${key} is already defined as ${entry.value}`;
     }
     if (rhs instanceof Obj) {
       const entry = new Entry(rhs);
