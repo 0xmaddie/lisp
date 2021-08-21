@@ -140,14 +140,6 @@ export abstract class Obj<T> {
   }
 
   /**
-   * If the receiver is a list, apply fn to each element and return
-   * the result as a list.
-   */
-  map(_fn: Obj<T>, _ctx: Env<T>, _act: Act<T>): Promise<Obj<T>> {
-    throw `${this} is not a list`;
-  }
-
-  /**
    * Evaluate the receiver in the environment provided.
    */
   evaluate(_ctx: Env<T>, act: Act<T>): Promise<Obj<T>> {
@@ -248,10 +240,6 @@ export class Nil<T> extends Obj<T> {
     return rhs;
   }
 
-  async map(_fn: Obj<T>, _ctx: Env<T>, act: Act<T>): Promise<Obj<T>> {
-    return act(this);
-  }
-
   evaluateAll(_ctx: Env<T>, act: Act<T>): Promise<Obj<T>> {
     return act(this);
   }
@@ -332,19 +320,6 @@ export class Pair<T> extends Obj<T> {
   append(rhs: Obj<T>): Obj<T> {
     const snd = this.snd.append(rhs);
     return new Pair(this.fst, snd);
-  }
-
-  async map(
-    fn: Obj<T>,
-    ctx: Env<T>,
-    act: Act<T>,
-  ): Promise<Obj<T>> {
-    return fn.apply(list([this.fst]), ctx, async (fst) => {
-      return this.snd.map(fn, ctx, async (snd) => {
-        const result = new Pair(fst, snd);
-        return act(result);
-      });
-    });
   }
 
   async evaluate(ctx: Env<T>, act: Act<T>): Promise<Obj<T>> {
@@ -922,4 +897,55 @@ export function list<T>(
     state = new Pair<T>(xs[i], state);
   }
   return state;
+}
+
+/**
+ * Applies a procedure to each element of a list.
+ */
+export function map<T>(
+  proc: Obj<T>,
+  xs: Obj<T>,
+  env: Env<T>,
+  act: Act<T>,
+): Promise<Obj<T>> {
+  if (xs.isEmpty) {
+    return act(xs);
+  }
+  return proc.apply(xs.fst, env, (fst) => {
+    return map(proc, xs.snd, env, (snd) => {
+      const result = new Pair(fst, snd);
+      return act(result);
+    });
+  });
+}
+
+/**
+ * Returns a list where the i-th element is a list of the i-th element
+ * of each list.
+ */
+export function zip<T>(
+  lists: Obj<T>,
+): Obj<T> {
+  const all_lists = lists.asArray.map((xs) => xs.asArray);
+  let common_length = 0;
+  for (let xs of all_lists) {
+    if (common_length === 0) {
+      common_length = xs.length;
+    } else {
+      if (common_length !== xs.length) {
+        throw `internal(zip): all lists must have the same length`;
+      }
+    }
+  }
+  let inner_args_buf = [];
+  for (let i = 0; i < common_length; ++i) {
+    let buf = [];
+    for (let j = 0; j < all_lists.length; ++j) {
+      buf.push(all_lists[j][i]);
+    }
+    const inner_args_partial = list(buf);
+    inner_args_buf.push(inner_args_partial);
+    buf = [];
+  }
+  return list(inner_args_buf);
 }

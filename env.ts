@@ -410,8 +410,8 @@ async function proc_map<T>(
   act: lisp.Act<T>,
 ): Promise<lisp.Obj<T>> {
   const proc = arg.fst;
-  const list = arg.snd.fst;
-  return list.map(proc, ctx, act);
+  const xs = arg.snd;
+  return lisp.map(proc, lisp.zip(xs), ctx, act);
 }
 
 function proc_add<T>(
